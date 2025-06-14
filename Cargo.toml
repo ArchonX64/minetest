@@ -1,0 +1,14 @@
+[package]
+name = "minetest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.98"
+bytemuck = "1.23.1"
+cargo-wgsl = "0.1.0"
+env_logger = "0.11.8"
+log = "0.4.27"
+pollster = "0.4.0"
+wgpu = "25.0"
+winit = "0.30.11"
