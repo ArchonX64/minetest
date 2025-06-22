@@ -1,22 +1,29 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use anyhow;
-use bytemuck;
-use winit::{event_loop::ActiveEventLoop, window::Window, keyboard::KeyCode};
+use winit::{window::Window, keyboard::KeyCode};
 
-use wgpu::util::DeviceExt;
+use crate::application::Input;
+use crate::graphics::camera::CameraInitials;
 
-use super::vertex::{ VERTICES };
+use super::cube_render::CubeRenderer;
+use super::camera::Camera;
 
 pub struct State {
+    // WGPU stuff
     surface: wgpu::Surface<'static>, // Represents the surface to be drawn on
     device: wgpu::Device, // Represents phycical device
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
     is_surface_configured: bool,
-    pub window: Arc<Window>
+    pub window: Arc<Window>,
+
+    // My stuff
+    cube_renderer: CubeRenderer,
+    pub camera: Camera,
+    last_frame: Instant,
+    delta_time: f32
 }
 
 impl State {
@@ -65,69 +72,41 @@ impl State {
             desired_maximum_frame_latency: 2,
         };
 
-        let shader = device.create_shader_module(
-            wgpu::include_wgsl!("../../resources/shaders/test.wgsl"));
+        let initials = CameraInitials {
+            pos: (1.0, 0.0, 0.0).into(),
+            direction: (-1.0, 0.0, 0.0).into(),
+            pitch: 0.,
+            yaw: 0.,
+            speed: 1.0,
+            sensitivity: 0.5,
+            width: config.width as f32,
+            height: config.height as f32,
+            fovy: 45.0,
+            znear: 0.1,
+            zfar: 100.0
+        };
 
-        let render_pipeline_layout = 
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Descriptor"),
-                bind_group_layouts: &[],
-                push_constant_ranges: &[]
-            });
+        let camera = Camera::new(
+            &device,
+            &queue,
+            initials,
+        );
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[],
-                compilation_options: wgpu::PipelineCompilationOptions::default()
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState { 
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                polygon_mode: wgpu::PolygonMode::Fill,
-                unclipped_depth: false,
-                conservative: false,
-            },
-            depth_stencil: None,
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        let cube_renderer = CubeRenderer::new(&device, &queue, config.format,
+             &[&camera.bind_group_layout]);
 
         Ok(Self {
             surface,
             device,
             queue,
             config,
-            render_pipeline,
             is_surface_configured: false,
             window,
-            vertex_buffer
+            cube_renderer,
+            camera,
+            last_frame: Instant::now(),
+            delta_time: 0. // We don't want anything using this until the first frame is rendered!
+            // Not an option due to performance concerns
         })
     }
 
@@ -140,22 +119,57 @@ impl State {
             }
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError>{
-        self.window.request_redraw();
+    pub fn render(&mut self, input: Input) -> Result<(), wgpu::SurfaceError> {
+        // Delta time
+        self.delta_time = (Instant::now() - self.last_frame).as_secs_f32();
+        self.last_frame = Instant::now();
 
-        if !self.is_surface_configured {
+        self.camera.update_camera(&self.queue, &input, self.delta_time);
+
+        // REQUIRES RENDER_PASS
+        wgpu_render(self, |state, render_pass | {
+            state.cube_renderer.render(state, render_pass);
+        })
+
+    }
+
+    pub fn on_key_press(&mut self, code: KeyCode) {
+        
+    }
+
+    pub fn on_key_release(&mut self, code: KeyCode) {
+
+    }
+
+    pub fn on_mouse_move(&mut self, mouse_dx: f64, mouse_dy: f64) {
+        self.camera.change_direction(mouse_dx, mouse_dy);
+    }
+
+    pub fn update(&mut self) {
+
+    }
+
+
+}
+
+// Renders all drawings to screen, resulting in a new frame
+    fn wgpu_render<F>(state: &mut State, rendering: F) -> Result<(), wgpu::SurfaceError> where
+        F: Fn(&State, &mut wgpu::RenderPass)
+    {
+        state.window.request_redraw(); // Tell the window object to prepare for redrawing
+
+        if !state.is_surface_configured {  // Ensure that all WGPU processes are finished
             return Ok(());
         }
 
-        let output = self.surface.get_current_texture()?;
-
+        // Generate required information
+        let output = state.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+        let mut encoder = state.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: Some("Render Encoder"),
         });
 
-        {  // Block so that begin_render_pass can borrow encoder
+        {  // Block so that begin_render_pass can borrow encoder and give back
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {  // Being a list allows a pipeline to be made
@@ -177,26 +191,13 @@ impl State {
                 timestamp_writes: None
             });
 
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.draw(0..3, 0..1);
+            // Submit desired renders to render_pass
+            rendering(&state, &mut render_pass);
         }
 
-        self.queue.submit(std::iter::once(encoder.finish()));
+        // Submit job to be rendered
+        state.queue.submit(std::iter::once(encoder.finish()));
         output.present();
 
         Ok(())
     }
-
-    pub fn handle_key(&self, event_loop: &ActiveEventLoop, code: KeyCode, is_pressed: bool) {
-        match (code, is_pressed) {
-            (KeyCode::Escape, true) => event_loop.exit(),
-            _ => {}
-        }
-    }
-
-    pub fn update(&mut self) {
-
-    }
-
-
-}

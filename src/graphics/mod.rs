@@ -1,19 +1,16 @@
-pub mod vertex;
 pub mod state;
-pub mod application;
 
+mod texture2d;
+mod cube_render;
+mod camera;
+mod projection;
 
-use application::Application;
+use cgmath;
 
-use winit::{ event_loop::EventLoop };
-
-pub fn run() -> anyhow::Result<()>{
-    env_logger::init();
-
-    let event_loop = EventLoop::with_user_event().build()?;
-
-    let mut app = Application::new();
-    event_loop.run_app(&mut app)?;
-
-    Ok(())
-}
+#[rustfmt::skip]
+pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::from_cols(
+    cgmath::Vector4::new(1.0, 0.0, 0.0, 0.0),
+    cgmath::Vector4::new(0.0, 1.0, 0.0, 0.0),
+    cgmath::Vector4::new(0.0, 0.0, 0.5, 0.0),
+    cgmath::Vector4::new(0.0, 0.0, 0.5, 1.0),
+);
