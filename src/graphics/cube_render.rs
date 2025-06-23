@@ -15,6 +15,29 @@ pub struct CubeRenderer {
     texture_map: Texture2D
 }
 
+struct CubeInstance {
+    tex_index: u32,
+    position: cgmath::Point3<u32>
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+struct CubeInstanceRaw {
+    tex_index: u32,
+    location: [u32; 3],
+    _buffer: u32
+}
+
+impl CubeInstance {
+    pub fn to_raw(&self) -> CubeInstanceRaw {
+        CubeInstanceRaw {
+            tex_index: self.tex_index,
+            location: self.position.into(),
+            _buffer: 0
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CubeVertex {
