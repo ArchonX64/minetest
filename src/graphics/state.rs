@@ -7,8 +7,9 @@ use winit::{window::Window, keyboard::KeyCode};
 use crate::application::Input;
 use crate::graphics::camera::CameraInitials;
 
-use super::cube_render::CubeRenderer;
+use super::cube_render::{ CubeRenderer, cube_instance::CubeInstance };
 use super::camera::Camera;
+
 
 pub struct State {
     // WGPU stuff
@@ -23,7 +24,8 @@ pub struct State {
     cube_renderer: CubeRenderer,
     pub camera: Camera,
     last_frame: Instant,
-    delta_time: f32
+    delta_time: f32,
+    cubes: Vec<CubeInstance>
 }
 
 impl State {
@@ -92,8 +94,15 @@ impl State {
             initials,
         );
 
-        let cube_renderer = CubeRenderer::new(&device, &queue, config.format,
-             &[&camera.bind_group_layout]);
+        let cube_renderer = CubeRenderer::new(&device, &queue, config.format, &camera.bind_group_layout);
+
+        let cubes: Vec<CubeInstance> = vec![
+            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 1., y: 1., z: 1. }},
+            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 2., y: 1., z: 1. }},
+            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 3., y: 1., z: 1. }},
+            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 1., y: 1., z: 2. }},
+            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 1., y: 1., z: 3. }}
+        ];
 
         Ok(Self {
             surface,
@@ -105,8 +114,9 @@ impl State {
             cube_renderer,
             camera,
             last_frame: Instant::now(),
-            delta_time: 0. // We don't want anything using this until the first frame is rendered!
+            delta_time: 0., // We don't want anything using this until the first frame is rendered!
             // Not an option due to performance concerns
+            cubes
         })
     }
 
@@ -128,7 +138,7 @@ impl State {
 
         // REQUIRES RENDER_PASS
         wgpu_render(self, |state, render_pass | {
-            state.cube_renderer.render(state, render_pass);
+            state.cube_renderer.render(render_pass, &state.queue, &state.camera.bind_group, &state.cubes);
         })
 
     }

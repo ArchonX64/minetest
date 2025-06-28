@@ -1,9 +1,9 @@
 pub mod state;
 
 mod texture2d;
-mod cube_render;
 mod camera;
 mod projection;
+mod cube_render;
 
 use cgmath;
 
