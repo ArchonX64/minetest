@@ -1,6 +1,7 @@
 pub mod graphics;
 mod application;
 mod util;
+mod game;
 
 use winit::event_loop::EventLoop;
 use application::Application;
