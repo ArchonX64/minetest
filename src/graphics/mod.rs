@@ -1,6 +1,8 @@
 pub mod state;
 
 mod texture2d;
+mod depthtexture;
+mod text_render;
 mod camera;
 mod projection;
 mod cube_render;

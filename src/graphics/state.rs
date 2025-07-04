@@ -9,6 +9,7 @@ use crate::graphics::camera::CameraInitials;
 
 use super::cube_render::{ CubeRenderer, cube_instance::CubeInstance };
 use super::camera::Camera;
+use super::depthtexture::DepthTexture;
 
 
 pub struct State {
@@ -21,8 +22,10 @@ pub struct State {
     pub window: Arc<Window>,
 
     // My stuff
+    depth_texture: DepthTexture,
     cube_renderer: CubeRenderer,
     pub camera: Camera,
+
     last_frame: Instant,
     delta_time: f32,
     cubes: Vec<CubeInstance>
@@ -94,6 +97,8 @@ impl State {
             initials,
         );
 
+        let depth_texture = DepthTexture::new(&device, &config);
+
         let cube_renderer = CubeRenderer::new(&device, &queue, config.format, &camera.bind_group_layout);
 
         let cubes: Vec<CubeInstance> = vec![
@@ -111,6 +116,7 @@ impl State {
             config,
             is_surface_configured: false,
             window,
+            depth_texture,
             cube_renderer,
             camera,
             last_frame: Instant::now(),
@@ -121,12 +127,14 @@ impl State {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) {
-            if width > 0 && height > 0 {
-                self.config.width = width;
-                self.config.height = height;
-                self.surface.configure(&self.device, &self.config);
-                self.is_surface_configured = true;
-            }
+        if width > 0 && height > 0 {
+            self.config.width = width;
+            self.config.height = height;
+            self.surface.configure(&self.device, &self.config);
+            self.is_surface_configured = true;
+
+            self.depth_texture = DepthTexture::new(&self.device, &self.config);
+        }
     }
 
     pub fn render(&mut self, input: Input) -> Result<(), wgpu::SurfaceError> {
@@ -194,9 +202,15 @@ impl State {
                         }),
                         store: wgpu::StoreOp::Store,  // We store them because we do want our results to have an effect
                     },
-
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &state.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None
             });

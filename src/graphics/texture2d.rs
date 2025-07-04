@@ -7,6 +7,8 @@ pub struct Texture2D {
 }
 
 impl Texture2D {
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
+
     pub fn new(label: &str, device: &wgpu::Device, queue: &wgpu::Queue, data: &'static [u8]) -> Self {
         // Load image data into a variable and adjust
         let texture_image = image::load_from_memory(data).unwrap();
