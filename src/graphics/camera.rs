@@ -1,4 +1,4 @@
-use cgmath::{self, Angle, InnerSpace, Zero};
+use cgmath::{self, InnerSpace, Zero};
 use bytemuck;
 use wgpu::util::DeviceExt;
 use winit::keyboard::KeyCode;
@@ -12,8 +12,6 @@ pub struct Camera {
     // Mathy stuff
     pos: cgmath::Point3<f32>,
     direction: cgmath::Vector3<f32>,
-    pitch: f32,
-    yaw: f32,
     speed: f32,
     sensitivity: f32,
 
@@ -29,8 +27,6 @@ pub struct Camera {
 pub struct CameraInitials {
     pub pos: cgmath::Point3<f32>,
     pub direction: cgmath::Vector3<f32>,
-    pub pitch: f32,
-    pub yaw: f32,
     pub speed: f32,
     pub sensitivity: f32,
     pub width: f32,
@@ -89,8 +85,6 @@ impl Camera {
         Self {
             pos: initials.pos,
             direction: initials.direction,
-            pitch: initials.pitch,
-            yaw: initials.yaw,
             speed: initials.speed,
             sensitivity: initials.sensitivity,
             proj,
@@ -113,6 +107,7 @@ impl Camera {
 
     pub fn update_camera(&mut self, queue: &wgpu::Queue, input: &Input, delta_time: f32) {
         self.movement(&input.pressed_keys, delta_time);
+        self.update_direction(input.mouse_x as f32, input.mouse_y as f32);
 
         // Ready uniform
         self.uniform.view_proj = self.build_view_projection_matrix().into();
@@ -146,16 +141,16 @@ impl Camera {
         }
     }
 
-    pub fn change_direction(&mut self, mouse_dx: f64, mouse_dy: f64) {
-        self.yaw += mouse_dx as f32 * self.sensitivity;
-        self.pitch -= mouse_dy as f32 * self.sensitivity;
+    pub fn update_direction(&mut self, mouse_x: f32, mouse_y: f32) {
+        let yaw = mouse_x * self.sensitivity;
+        let mut pitch = -mouse_y * self.sensitivity;
 
-        if self.pitch > 89.0 { self.pitch = 89.0 }
-        if self.pitch < -89.0 { self.pitch = -89.0 }
+        if pitch > 89.0 { pitch = 89.0 }
+        if pitch < -89.0 { pitch = -89.0 }
 
-        let xdir = self.yaw.to_radians().cos() * self.pitch.to_radians().cos();
-        let ydir = self.pitch.to_radians().sin();
-        let zdir = self.yaw.to_radians().sin() * self.pitch.to_radians().cos();
+        let xdir = yaw.to_radians().cos() * pitch.to_radians().cos();
+        let ydir = pitch.to_radians().sin();
+        let zdir = yaw.to_radians().sin() * pitch.to_radians().cos();
 
         self.direction = cgmath::Vector3::new(xdir, ydir, zdir).normalize();
     }

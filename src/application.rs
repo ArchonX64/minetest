@@ -1,34 +1,63 @@
 use std::{collections::HashSet, sync::Arc};
+use std::time::Instant;
 
-use crate::graphics::state::State;
+use crate::graphics::Graphics;
+use crate::game::Game;
 
-use winit::{ application::ApplicationHandler, dpi::{LogicalSize, Size}, event::*, event_loop::ActiveEventLoop, keyboard::{KeyCode, PhysicalKey}, window::{Fullscreen, Window}};
+use winit::application::ApplicationHandler;
+use winit::dpi::{LogicalSize};
+use winit::event::*;
+use winit::event_loop::ActiveEventLoop;
+use winit::keyboard::{KeyCode, PhysicalKey};
+use winit::window::{Fullscreen, Window, WindowId};
 
 pub struct Application {
-    state: Option<State>,
+    graphics: Option<Graphics>,
+    game: Game,
+
     pressed_keys: HashSet<KeyCode>,
-    mouse_dx: f64,
-    mouse_dy: f64
+    mouse_x: f64,
+    mouse_y: f64,
+    last_time: Instant,
 }
 
 pub struct Input {
     pub pressed_keys: Vec<KeyCode>,
-    pub mouse_dx: f64,
-    pub mouse_dy: f64
+    pub mouse_x: f64,
+    pub mouse_y: f64
 }
 
 impl Application {
     pub fn new() -> Self {
+        let game = Game::new();
+
         Self {
-            state: None,
+            graphics: None,
             pressed_keys: HashSet::new(),
-            mouse_dx: 0.,
-            mouse_dy: 0.,
+            game,
+            mouse_x: 0.,
+            mouse_y: 0.,
+            last_time: Instant::now(),
+        }
+    }
+
+    pub fn get_input(&self) -> Input {
+        Input {
+            pressed_keys: self.pressed_keys.iter().copied().collect(),
+            mouse_x: self.mouse_x,
+            mouse_y: self.mouse_y
+        }
+    }
+
+    pub fn request_redraw(&self) {
+        match &self.graphics {
+            Some(graphics) => graphics.window.request_redraw(),
+            None => {}
         }
     }
 }
 
-impl ApplicationHandler<State> for Application {
+impl ApplicationHandler<Graphics> for Application {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
             #[allow(unused_mut)]
             let mut window_attributes = Window::default_attributes()
@@ -39,63 +68,52 @@ impl ApplicationHandler<State> for Application {
             window.set_cursor_grab(winit::window::CursorGrabMode::Locked).unwrap();
             window.set_cursor_visible(false);
 
-            self.state = Some(pollster::block_on(State::new(window)).unwrap());
+            self.graphics = Some(pollster::block_on(Graphics::new(window)).unwrap());
     }
 
-    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: State) {
-        self.state = Some(event);
-    }
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
 
-    fn device_event(
-            &mut self,
-            _event_loop: &ActiveEventLoop,
-            _device_id: DeviceId,
-            event: DeviceEvent,
-        ) {
-
-
-        let state = match &mut self.state {
-            Some(canvas) => canvas,
-            None => return
-        };
+        self.game.tick(self.get_input());  // Trigger game loop
         
+        // Trigger rendering
+        match &self.graphics {
+            Some(graphics) => graphics.window.request_redraw(),
+            None => {}
+        }
+    }
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: Graphics) {
+        self.graphics = Some(event);
+    }
+
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, event: DeviceEvent) {
         match event {
             DeviceEvent::MouseMotion { 
                 delta 
             } => {
-                state.on_mouse_move(delta.0, delta.1);
+                self.mouse_x += delta.0;
+                self.mouse_y += delta.1;
             },
             _ => {}
         }
     }
 
-    fn window_event(
-            &mut self,
-            event_loop: &ActiveEventLoop,
-            _window_id: winit::window::WindowId,
-            event: WindowEvent,
-        ) {
-        
-        let state = match &mut self.state {
-            Some(canvas) => canvas,
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
+        let input = self.get_input();
+        let graphics = match &mut self.graphics {
+            Some(graphics) => graphics,
             None => return,
         };
 
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
-            WindowEvent::Resized(size) => state.resize(size.width, size.height),
+            WindowEvent::Resized(size) => graphics.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                let input = Input {
-                    pressed_keys: self.pressed_keys.iter().copied().collect(),
-                    mouse_dx: self.mouse_dx,
-                    mouse_dy: self.mouse_dy
-                };
-
-                match state.render(input) {
+                match graphics.render(input) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        let size = state.window.inner_size();
-                        state.resize(size.width, size.height)
+                        let size = graphics.window.inner_size();
+                        graphics.resize(size.width, size.height);
                     }
                     Err(e) => {
                         log::error!("Unable to render {}", e);
@@ -113,13 +131,9 @@ impl ApplicationHandler<State> for Application {
              } => {
                 if key_state == ElementState::Pressed {
                     self.pressed_keys.insert(code);
-
-                    state.on_key_press(code);
                 }
                 if key_state == ElementState::Released {
                     self.pressed_keys.remove(&code);
-
-                    state.on_key_release(code);
                 }
 
                 match code {

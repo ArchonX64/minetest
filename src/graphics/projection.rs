@@ -12,7 +12,7 @@ pub struct Projection {
 impl Projection {
     pub fn new(initials: &CameraInitials) -> Self {
         Self {
-            aspect: initials.width as f32 / initials.height as f32,
+            aspect: initials.width / initials.height,
             fovy: initials.fovy,
             znear: initials.znear,
             zfar: initials.zfar,
