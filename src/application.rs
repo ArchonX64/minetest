@@ -18,7 +18,6 @@ pub struct Application {
     pressed_keys: HashSet<KeyCode>,
     mouse_x: f64,
     mouse_y: f64,
-    last_time: Instant,
 }
 
 pub struct Input {
@@ -37,7 +36,6 @@ impl Application {
             game,
             mouse_x: 0.,
             mouse_y: 0.,
-            last_time: Instant::now(),
         }
     }
 
@@ -109,7 +107,7 @@ impl ApplicationHandler<Graphics> for Application {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => graphics.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                match graphics.render(input) {
+                match graphics.render(input, self.game.get_renderables()) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         let size = graphics.window.inner_size();

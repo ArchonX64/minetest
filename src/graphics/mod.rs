@@ -3,7 +3,7 @@ mod depthtexture;
 mod text_render;
 mod camera;
 mod projection;
-mod cube_render;
+pub mod cube_render;
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -11,7 +11,7 @@ use std::time::Instant;
 use anyhow;
 use winit::{window::Window};
 
-use crate::application::Input;
+use crate::{application::Input, game::renderables::Renderables};
 use cube_render::{ CubeRenderer, cube_instance::CubeInstance };
 use camera::{ Camera, CameraInitials };
 use depthtexture::DepthTexture;
@@ -32,8 +32,7 @@ pub struct Graphics {
     pub camera: Camera,
 
     last_frame: Instant,
-    delta_time: f64,
-    cubes: Vec<CubeInstance>
+    delta_time: f32,
 }
 
 impl Graphics {
@@ -104,14 +103,6 @@ impl Graphics {
 
         let cube_renderer = CubeRenderer::new(&device, &queue, config.format, &camera.bind_group_layout);
 
-        let cubes: Vec<CubeInstance> = vec![
-            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 1., y: 1., z: 1. }},
-            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 2., y: 1., z: 1. }},
-            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 3., y: 1., z: 1. }},
-            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 1., y: 1., z: 2. }},
-            CubeInstance { tex_index: 0, position: cgmath::Point3 { x: 1., y: 1., z: 3. }}
-        ];
-
         Ok(Self {
             surface,
             device,
@@ -125,7 +116,6 @@ impl Graphics {
             last_frame: Instant::now(),
             delta_time: 0., // We don't want anything using this until the first frame is rendered!
             // Not an option due to performance concerns
-            cubes
         })
     }
 
@@ -140,17 +130,17 @@ impl Graphics {
         }
     }
 
-    // 
-    fn render_inject(graphics: &mut Graphics, render_pass: &mut wgpu::RenderPass) {
-        graphics.cube_renderer.render(render_pass, &graphics.queue, &graphics.camera.bind_group, &graphics.cubes);
+    fn render_inject(graphics: &mut Graphics, render_pass: &mut wgpu::RenderPass, renderables: Renderables) {
+        graphics.cube_renderer.render(render_pass, &graphics.queue, &graphics.camera.bind_group, 
+                                     &renderables.cubes);
     }
 
-    pub fn render(&mut self, input: Input) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, input: Input, renderables: Renderables) -> Result<(), wgpu::SurfaceError> {
         // Delta time
-        self.delta_time = (Instant::now() - self.last_frame).as_secs_f64();
+        self.delta_time = (Instant::now() - self.last_frame).as_secs_f32();
         self.last_frame = Instant::now();
 
-        self.camera.update_camera(&self.queue, &input, self.delta_time as f32);
+        self.camera.update_camera(&self.queue, &input, self.delta_time);
 
         if !self.is_surface_configured {  // Ensure that all WGPU processes are finished
             return Ok(());
@@ -192,7 +182,7 @@ impl Graphics {
             });
 
             // Submit desired renders to render_pass
-            Graphics::render_inject(self, &mut render_pass);
+            Graphics::render_inject(self, &mut render_pass, renderables);
         }
 
         // Submit job to be rendered

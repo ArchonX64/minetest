@@ -14,3 +14,16 @@ pub struct StackCoords {
     pub x: Loc,
     pub z: Loc,
 }
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PlayerCoords {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PlayerDirection {
+    pub pitch: f32,
+    pub yaw: f32
+}

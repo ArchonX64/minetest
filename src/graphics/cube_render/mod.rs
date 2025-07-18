@@ -16,7 +16,7 @@ pub struct CubeRenderer {
 }
 
 impl CubeRenderer {
-    const MAX_INSTANCES: u64 = 100;
+    const MAX_INSTANCES: u64 = 10000;
 
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, format: wgpu::TextureFormat, camera_layout: &wgpu::BindGroupLayout) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("cube.wgsl"));
