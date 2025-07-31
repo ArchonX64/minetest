@@ -1,4 +1,4 @@
 pub mod active_block;
-pub mod world;
-mod stack;
-mod slice;
+pub mod worldblocks;
+pub mod stack;
+pub mod slice;

@@ -1,21 +1,14 @@
-use cgmath::{self, InnerSpace, Zero};
+use cgmath::{ self, Point3, Vector3 };
 use bytemuck;
 use wgpu::util::DeviceExt;
-use winit::keyboard::KeyCode;
 
-use crate::application::Input;
+use crate::game::renderables::Renderables;
 
 use super::projection::Projection;
 
 
 pub struct Camera {
-    // Mathy stuff
-    pos: cgmath::Point3<f32>,
-    direction: cgmath::Vector3<f32>,
-    speed: f32,
-    sensitivity: f32,
-
-    // Graphicy stuff
+    
     uniform: CameraUniform,
     buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
@@ -25,10 +18,6 @@ pub struct Camera {
 }
 
 pub struct CameraInitials {
-    pub pos: cgmath::Point3<f32>,
-    pub direction: cgmath::Vector3<f32>,
-    pub speed: f32,
-    pub sensitivity: f32,
     pub width: f32,
     pub height: f32,
     pub fovy: f32,
@@ -43,7 +32,7 @@ pub struct CameraUniform {
 }
 
 impl Camera {
-    pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, initials: CameraInitials) -> Self {
+    pub fn new(device: &wgpu::Device, initials: CameraInitials) -> Self {
         
         let uniform = CameraUniform::new();
 
@@ -83,10 +72,6 @@ impl Camera {
         let proj = Projection::new(&initials);
 
         Self {
-            pos: initials.pos,
-            direction: initials.direction,
-            speed: initials.speed,
-            sensitivity: initials.sensitivity,
             proj,
             uniform,
             buffer,
@@ -95,64 +80,18 @@ impl Camera {
         }
     }
 
-    fn build_view_projection_matrix(&self) -> cgmath::Matrix4<f32> {
-
+    fn build_view_projection_matrix(&self, position: Point3<f32>, direction: Vector3<f32>) -> cgmath::Matrix4<f32> {
         let view = cgmath::Matrix4::look_at_rh(
-            self.pos,
-            self.pos + self.direction,
+            position,
+            position + direction,
             cgmath::Vector3::unit_y());
 
         return super::OPENGL_TO_WGPU_MATRIX * self.proj.calc_matrix() * view;
     }
 
-    pub fn update_camera(&mut self, queue: &wgpu::Queue, input: &Input, delta_time: f32) {
-        self.movement(&input.pressed_keys, delta_time);
-        self.update_direction(input.mouse_x as f32, input.mouse_y as f32);
-
-        // Ready uniform
-        self.uniform.view_proj = self.build_view_projection_matrix().into();
+    pub fn update_camera(&mut self, queue: &wgpu::Queue, renderables: &Renderables) {
+        self.uniform.view_proj = self.build_view_projection_matrix(renderables.cam_pos, renderables.cam_dir).into();
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
-    }
-
-    fn movement(&mut self, pressed_keys: &Vec<KeyCode>, delta_time: f32) {
-        let mut movement_vec= cgmath::Vector3::new(0.0, 0.0, 0.0);
-
-        if pressed_keys.contains(&KeyCode::KeyW) || pressed_keys.contains(&KeyCode::ArrowUp) {
-            movement_vec += self.direction;
-        }
-        if pressed_keys.contains(&KeyCode::KeyS) || pressed_keys.contains(&KeyCode::ArrowDown) {
-            movement_vec -= self.direction;
-        }
-        if pressed_keys.contains(&KeyCode::KeyD) || pressed_keys.contains(&KeyCode::ArrowRight) {
-            movement_vec += self.direction.cross(cgmath::Vector3::unit_y());
-        }
-        if pressed_keys.contains(&KeyCode::KeyA) || pressed_keys.contains(&KeyCode::ArrowLeft) {
-            movement_vec -= self.direction.cross(cgmath::Vector3::unit_y());
-        }
-        if pressed_keys.contains(&KeyCode::Space) {
-            movement_vec += cgmath::Vector3::unit_y(); 
-        }
-        if pressed_keys.contains(&KeyCode::ShiftLeft) {
-            movement_vec -= cgmath::Vector3::unit_y();
-        }
-
-        if movement_vec != cgmath::Vector3::zero() { // If movement_vec is 0, normalize will return NaNs
-            self.pos += movement_vec.normalize() * self.speed * delta_time;
-        }
-    }
-
-    pub fn update_direction(&mut self, mouse_x: f32, mouse_y: f32) {
-        let yaw = mouse_x * self.sensitivity;
-        let mut pitch = -mouse_y * self.sensitivity;
-
-        if pitch > 89.0 { pitch = 89.0 }
-        if pitch < -89.0 { pitch = -89.0 }
-
-        let xdir = yaw.to_radians().cos() * pitch.to_radians().cos();
-        let ydir = pitch.to_radians().sin();
-        let zdir = yaw.to_radians().sin() * pitch.to_radians().cos();
-
-        self.direction = cgmath::Vector3::new(xdir, ydir, zdir).normalize();
     }
 }
 

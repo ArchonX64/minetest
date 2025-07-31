@@ -82,20 +82,15 @@ impl Graphics {
         };
 
         let initials = CameraInitials {
-            pos: (1.0, 0.0, 0.0).into(),
-            direction: (-1.0, 0.0, 0.0).into(),
-            speed: 1.0,
-            sensitivity: 0.5,
             width: config.width as f32,
             height: config.height as f32,
-            fovy: 45.0,
+            fovy: 90.0,
             znear: 0.1,
             zfar: 100.0
         };
 
         let camera = Camera::new(
             &device,
-            &queue,
             initials,
         );
 
@@ -135,12 +130,12 @@ impl Graphics {
                                      &renderables.cubes);
     }
 
-    pub fn render(&mut self, input: Input, renderables: Renderables) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, renderables: Renderables) -> Result<(), wgpu::SurfaceError> {
         // Delta time
         self.delta_time = (Instant::now() - self.last_frame).as_secs_f32();
         self.last_frame = Instant::now();
 
-        self.camera.update_camera(&self.queue, &input, self.delta_time);
+        self.camera.update_camera(&self.queue, &renderables);
 
         if !self.is_surface_configured {  // Ensure that all WGPU processes are finished
             return Ok(());

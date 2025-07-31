@@ -16,14 +16,19 @@ pub struct Application {
     game: Game,
 
     pressed_keys: HashSet<KeyCode>,
+    alpha: f64,
     mouse_x: f64,
     mouse_y: f64,
+    mouse_dx: f64,
+    mouse_dy: f64
 }
 
 pub struct Input {
     pub pressed_keys: Vec<KeyCode>,
     pub mouse_x: f64,
-    pub mouse_y: f64
+    pub mouse_y: f64,
+    pub mouse_dx: f64,
+    pub mouse_dy: f64,
 }
 
 impl Application {
@@ -34,8 +39,11 @@ impl Application {
             graphics: None,
             pressed_keys: HashSet::new(),
             game,
+            alpha: 0.5,
             mouse_x: 0.,
             mouse_y: 0.,
+            mouse_dx: 0.,
+            mouse_dy: 0.
         }
     }
 
@@ -43,7 +51,9 @@ impl Application {
         Input {
             pressed_keys: self.pressed_keys.iter().copied().collect(),
             mouse_x: self.mouse_x,
-            mouse_y: self.mouse_y
+            mouse_y: self.mouse_y,
+            mouse_dx: self.mouse_dx,
+            mouse_dy: self.mouse_dy
         }
     }
 
@@ -78,6 +88,10 @@ impl ApplicationHandler<Graphics> for Application {
             Some(graphics) => graphics.window.request_redraw(),
             None => {}
         }
+
+        // Reset mouse dx and dy
+        self.mouse_dx = 0.;
+        self.mouse_dy = 0.;
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: Graphics) {
@@ -91,6 +105,8 @@ impl ApplicationHandler<Graphics> for Application {
             } => {
                 self.mouse_x += delta.0;
                 self.mouse_y += delta.1;
+                self.mouse_dx += delta.0;
+                self.mouse_dy += delta.1;
             },
             _ => {}
         }
@@ -107,7 +123,7 @@ impl ApplicationHandler<Graphics> for Application {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => graphics.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                match graphics.render(input, self.game.get_renderables()) {
+                match graphics.render(self.game.get_renderables()) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         let size = graphics.window.inner_size();
