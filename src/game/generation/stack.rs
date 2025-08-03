@@ -6,7 +6,7 @@ use super::active_block::ActiveBlock;
 use super::super::units::{ BlockCoords, Loc, StackCoords, EntityCoords, BlockID };
 
 pub struct Stack {
-    slices: HashMap<Loc, Slice>,
+    pub slices: HashMap<Loc, Slice>,
     active_blocks: HashMap<BlockCoords, ActiveBlock>
 }
 
@@ -27,7 +27,7 @@ impl Stack {
         let mut stack  = Stack::new();
         
         for i in 0i32..3i32 {
-            stack.slices.insert(i, Slice::new(0));
+            stack.slices.insert(i, Slice::new(1));
         };
 
         stack

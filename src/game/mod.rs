@@ -1,26 +1,24 @@
 pub mod generation;
 mod units;
 mod player;
-mod player2;
-mod collider;
 pub mod components;
 pub mod renderables;
 
 use cgmath::{ Vector3, Point3 };
-use legion::{self, Schedule, Resources, IntoQuery};
+use legion::{self, Schedule, IntoQuery};
 use std::time::Instant;
 
-use player2::Player;
 use renderables::Renderables;
 use generation::worldblocks::WorldBlocks;
-use player::{ Camera, generate_main_player };
+use player::{ Camera };
 use crate::{application::Input};
 use components::{ time::Time, spatial::{ Direction, Position }};
 
 pub struct Game {
     blocks: WorldBlocks,
     world: legion::World,
-    schedule: legion::Schedule,
+    pre_collision_schedule: legion::Schedule,
+    post_collision_schedule: legion::Schedule,
     resources: legion::Resources,
 
     last_tick: Instant,
@@ -32,21 +30,28 @@ impl Game {
         let blocks = WorldBlocks::test_layout();
         let mut world = legion::World::default();
         player::generate_main_player(&mut world);
-        //let player = Player::new();
 
         Self {
             blocks,
             world,
-            schedule: Game::generate_schedule(),
+            pre_collision_schedule: Game::generate_precollision_schedule(),
+            post_collision_schedule: Game::generate_postcollision_schedule(),
             resources: legion::Resources::default(),
             last_tick: Instant::now()
         }
     }
 
-    pub fn generate_schedule() -> Schedule {
+    pub fn generate_precollision_schedule() -> Schedule {
         let mut scheduler = legion::Schedule::builder();
 
         components::input::schedule(&mut scheduler);
+
+        return scheduler.build()
+    }
+
+    pub fn generate_postcollision_schedule() -> Schedule {
+        let mut scheduler = legion::Schedule::builder();
+
         components::spatial::schedule(&mut scheduler);
 
         return scheduler.build()
@@ -59,7 +64,11 @@ impl Game {
         self.resources.insert(Time { dt });
         self.resources.insert(input);
 
-        self.schedule.execute(&mut self.world, &mut self.resources);
+        self.pre_collision_schedule.execute(&mut self.world, &mut self.resources);
+
+        components::collision::block_collide(&mut self.world, &self.blocks);
+
+        self.post_collision_schedule.execute(&mut self.world, &mut self.resources);
     }
 
     pub fn get_renderables(&mut self) -> Renderables {

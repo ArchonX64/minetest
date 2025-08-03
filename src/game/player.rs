@@ -1,6 +1,7 @@
+use cgmath::Vector3;
 use legion::World;
 
-use super::components::{ spatial::{ Position, Velocity, Direction, Gravity}, input::{ HumanoidKeyboardMovement, MouseLook } };
+use super::components::{ spatial::*, input::*, collision::*};
 
 pub struct Camera;
 
@@ -12,6 +13,8 @@ pub fn generate_main_player(world: &mut World) {
         Gravity,
         HumanoidKeyboardMovement { speed: 0.1 },
         MouseLook::base(10., 1.),
-        Camera
+        Camera,
+        BoxCollider { bounds: Vector3 { x: 1., y: 2., z: 1.} },
+        CollidesWithBlocks,
     ));
 }
