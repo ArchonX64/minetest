@@ -4,15 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+ab_glyph = "0.2.31"
 anyhow = "1.0.98"
 bytemuck = "1.23.1"
 cargo-wgsl = "0.1.0"
 cgmath = "0.18.0"
 env_logger = "0.11.8"
+itertools = "0.14.0"
 legion = { version = "0.4.0", features = ["codegen", "extended-tuple-impls"] }
 log = "0.4.27"
 pollster = "0.4.0"
-rusttype = "0.9.3"
+rect_packer = "0.2.1"
 wgpu = "25.0"
 winit = "0.30.11"
 

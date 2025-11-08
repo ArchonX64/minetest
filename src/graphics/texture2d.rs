@@ -1,15 +1,42 @@
 use image;
+use cgmath::Vector2;
 
 pub struct Texture2D {
     texture: wgpu::Texture,
-    pub bind_group_layout: wgpu::BindGroupLayout,
-    pub bind_group: wgpu::BindGroup
+    pub bind_group: wgpu::BindGroup,
+    pub size: Vector2<u32>
 }
 
 impl Texture2D {
     pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth32Float;
 
-    pub fn new(label: &str, device: &wgpu::Device, queue: &wgpu::Queue, data: &'static [u8]) -> Self {
+    pub fn get_layout(device: &wgpu::Device, label: &str) -> wgpu::BindGroupLayout {
+        // Defines how the texture will be accessed by the shader, including the sampler.
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            label: Some(label),
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true }
+                    },
+                    count: None
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None
+                }
+            ],
+        })
+    }
+
+    pub fn from_png(label: &str, device: &wgpu::Device, queue: &wgpu::Queue, data: &[u8],
+                    filter: wgpu::FilterMode) -> Self {
         // Load image data into a variable and adjust
         let texture_image = image::load_from_memory(data).unwrap();
         let texture_data = texture_image.to_rgba8();
@@ -17,6 +44,11 @@ impl Texture2D {
         // Get dimensions of image
         let dimensions = texture_data.dimensions();
 
+        Self::from_bytes(label, device, queue, dimensions, &texture_data, filter)
+    }
+
+    pub fn from_bytes(label: &str, device: &wgpu::Device, queue: &wgpu::Queue, dimensions: (u32, u32), data: &[u8],
+                      filter: wgpu::FilterMode) -> Self {
         let texture_size = wgpu::Extent3d {
             width: dimensions.0,
             height: dimensions.1,
@@ -43,7 +75,7 @@ impl Texture2D {
                 origin: wgpu::Origin3d::ZERO,
                 aspect: wgpu::TextureAspect::All
             },
-            &texture_data, // The data itself
+            &data, // The data itself
             wgpu::TexelCopyBufferLayout {
                 offset: 0,
                 bytes_per_row: Some(4 * dimensions.0), // One byte for each r, g, b, a
@@ -57,39 +89,16 @@ impl Texture2D {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Nearest,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
+            mag_filter: filter,
+            min_filter: filter,
+            mipmap_filter: filter,
             ..Default::default()
-        });
-
-        // Defines how the texture will be accessed by the shader, including the sampler.
-        let bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some(&label),
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Texture {
-                        multisampled: false,
-                        view_dimension: wgpu::TextureViewDimension::D2,
-                        sample_type: wgpu::TextureSampleType::Float { filterable: true }
-                    },
-                    count: None
-                },
-                wgpu::BindGroupLayoutEntry {
-                    binding: 1,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None
-                }
-            ],
         });
 
         // Define the actual data to be bound
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some(&label),
-            layout: &bind_group_layout,
+            layout: &Self::get_layout(device, label),
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -104,8 +113,8 @@ impl Texture2D {
 
         Self {
             texture,
-            bind_group_layout,
-            bind_group
+            bind_group,
+            size: Vector2 { x: dimensions.0, y: dimensions.1 }
         }
     }
 }

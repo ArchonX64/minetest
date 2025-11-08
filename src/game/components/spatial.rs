@@ -1,4 +1,4 @@
-use crate::application::Input;
+use crate::{application::Input, game::components::input::HumanoidKeyboardMovement};
 
 use super::time::Time;
 
@@ -46,12 +46,10 @@ fn apply_velocity(pos: &mut Position, vel: &Velocity, #[resource] time: &Time ) 
     pos.vector += vel.vector * time.dt;
 }
 
-const GRAVITY: f32 = 2.2;
+const GRAVITY: f32 = 3.;
 #[system(for_each)]
-fn apply_gravity(vel: &mut Velocity, _grav: &Gravity, #[resource] time: &Time, #[resource] input: &Input) {
-    if input.pressed_keys.contains(&KeyCode::KeyH) {
-        vel.vector.y -= GRAVITY * time.dt;
-    }
+fn apply_gravity(vel: &mut Velocity, _grav: &Gravity, #[resource] time: &Time) {
+    vel.vector.y -= GRAVITY * time.dt;
 }
 
 pub fn schedule(scheduler: &mut Builder) {

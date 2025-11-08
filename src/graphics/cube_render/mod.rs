@@ -20,13 +20,13 @@ impl CubeRenderer {
 
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue, format: wgpu::TextureFormat, camera_layout: &wgpu::BindGroupLayout) -> Self {
         let shader = device.create_shader_module(wgpu::include_wgsl!("cube.wgsl"));
-        let texture_map = Texture2D::new("Some Texture", &device, &queue,
-         include_bytes!("../../../resources/textures/grass_full.png"));
+        let texture_map = Texture2D::from_png("Some Texture", &device, &queue,
+         include_bytes!("../../../resources/textures/grass_full.png"), wgpu::FilterMode::Nearest);
 
         let render_pipeline_layout = 
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Descriptor"),
-                bind_group_layouts: &[camera_layout, &texture_map.bind_group_layout],
+                bind_group_layouts: &[camera_layout, &Texture2D::get_layout(device, "Cube Texture Bind Group Layout")],
                 push_constant_ranges: &[]
             });
 
@@ -106,8 +106,8 @@ impl CubeRenderer {
         render_pass.set_pipeline(&self.render_pipeline);
 
         // Bind Groups
-        render_pass.set_bind_group(0, camera, &[]); // Texture
-        render_pass.set_bind_group(1, &self.texture_map.bind_group, &[]);  // Camera Uniform
+        render_pass.set_bind_group(0, camera, &[]); // Camera Uniform
+        render_pass.set_bind_group(1, &self.texture_map.bind_group, &[]);  // Texture
 
         // Vertex Buffer
         render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));

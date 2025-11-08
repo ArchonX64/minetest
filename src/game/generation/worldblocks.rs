@@ -64,7 +64,7 @@ impl WorldBlocks {
         blocks
     }
 
-    pub fn is_touching(&self, collider: &BoxCollider, position: &Position) -> Vec<(BlockID, Vector3<i32>)> {
+    pub fn is_touching(&self, collider: &BoxCollider, position: &Position) -> Vec<(BlockID, Vector3<i32>, f32)> {
         let mut collisions = Vec::new();
         let blocks = self.get_subset(position.vector, collider.bounds); // Guarentees a possible position
         let (pos, bounds) = (position.vector, collider.bounds);
@@ -78,49 +78,48 @@ impl WorldBlocks {
             let blocks = range3d((corner_low.x.floor() as i32, corner_low.x.floor() as i32 + 1),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
-            possibilities.push((blocks, Vector3 { x: -1, y: 0, z: 0}));   
+            possibilities.push((blocks, Vector3 { x: -1, y: 0, z: 0}, corner_low.x - corner_low_round.x.round()));   
         }
         if (corner_high.x - corner_high.x.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_high.x.ceil() as i32, corner_high.x.ceil() as i32 + 1),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
-            possibilities.push((blocks, Vector3 { x: 1, y: 0, z: 0}));
+            possibilities.push((blocks, Vector3 { x: 1, y: 0, z: 0}, corner_high.x - corner_high.x.round()));
         }
         if (corner_low.y - corner_low.y.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32),
                                  (corner_low.y.floor() as i32, corner_low.y.floor() as i32 + 1),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
-            possibilities.push((blocks, Vector3 { x: 0, y: -1, z: 0}));
-            println!("{:.?}", possibilities);
+            possibilities.push((blocks, Vector3 { x: 0, y: -1, z: 0}, corner_low.y - corner_low.y.round()));
         }
         if (corner_high.y - corner_high.y.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32),
                                  (corner_high.y.ceil() as i32, corner_high.y.ceil() as i32 + 1),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
-            possibilities.push((blocks, Vector3 { x: 0, y: 1, z: 0}));
+            possibilities.push((blocks, Vector3 { x: 0, y: 1, z: 0}, corner_high.y - corner_high.y.round()));
         }
         if (corner_low.z - corner_low.z.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
                                  (corner_low.z.floor() as i32, corner_low.z.floor() as i32 + 1));
-            possibilities.push((blocks, Vector3 { x: 0, y: 0, z: -1}));
+            possibilities.push((blocks, Vector3 { x: 0, y: 0, z: -1}, corner_low.z - corner_low.z.round()));
         }
         if (corner_high.z - corner_high.z.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32 + 1),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
                                  (corner_high.z.ceil() as i32, corner_high.z.ceil() as i32 + 1));
-            possibilities.push((blocks, Vector3 { x: 0, y: 0, z: 1}));
+            possibilities.push((blocks, Vector3 { x: 0, y: 0, z: 1}, corner_high.z - corner_high.z.round()));
         }
 
         // Now check individual blocks
         // TODO: Replace with a map of blocks that can be walked through
-        for (possible_blocks, direction) in possibilities {
+        for (possible_blocks, direction, diff) in possibilities {
             for block in possible_blocks {
                 match blocks.get(&block) { // Our subset guarentees a block location
                     Some(id_ref) => {
                         let id = *id_ref;
                         if id != 0 { // 0 is air block, can walk through it
-                            collisions.push((id, direction))
+                            collisions.push((id, direction, diff))
                         }
                     }
                     None => {}

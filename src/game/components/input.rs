@@ -2,12 +2,14 @@ use winit::keyboard::KeyCode;
 use legion::{ system, systems::Builder };
 use cgmath::{ Vector3, InnerSpace, Zero };
 
+use crate::game::components::spatial::Velocity;
 use crate::{application::Input, util::lerp};
 use super::spatial::{ Position, Direction };
 use super::time::Time;
 
 pub struct HumanoidKeyboardMovement {
     pub speed: f32,
+    pub jump_vel: f32,
 }
 
 pub struct MouseLook {
@@ -26,12 +28,13 @@ impl MouseLook {
 }
 
 #[system(for_each)]
-fn player_movement(movement: &HumanoidKeyboardMovement, dir: &Direction, pos: &mut Position, #[resource] input: &Input) {
+fn player_movement(movement: &HumanoidKeyboardMovement, dir: &Direction, pos: &mut Position, vel: &mut Velocity,
+     #[resource] input: &Input, #[resource] time: &Time) {
     let mut movement_vec = Vector3::new(0.0, 0.0, 0.0);
 
     if input.pressed_keys.contains(&KeyCode::KeyW) || input.pressed_keys.contains(&KeyCode::ArrowUp) {
         movement_vec += dir.vector;
-       }
+    }
     if input.pressed_keys.contains(&KeyCode::KeyS) || input.pressed_keys.contains(&KeyCode::ArrowDown) {
         movement_vec -= dir.vector;
     }
@@ -42,14 +45,12 @@ fn player_movement(movement: &HumanoidKeyboardMovement, dir: &Direction, pos: &m
         movement_vec -= dir.vector.cross(Vector3::unit_y());
     }
     if input.pressed_keys.contains(&KeyCode::Space) {
-        movement_vec += Vector3::unit_y(); 
-    }
-    if input.pressed_keys.contains(&KeyCode::ShiftLeft) {
-        movement_vec -= Vector3::unit_y();
+        vel.vector.y += movement.jump_vel;
     }
 
+    movement_vec.y = 0.;
     if movement_vec != Vector3::zero() { // If movement_vec is 0, normalize will return NaNs
-        pos.vector += movement_vec.normalize() * movement.speed;
+        pos.vector += movement_vec.normalize() * movement.speed * time.dt * 100.;
     }
 }
 

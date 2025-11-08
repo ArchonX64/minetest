@@ -1,4 +1,4 @@
-use cgmath::{ self, Point3, Vector3 };
+use cgmath::{ self, Point3, Vector2, Vector3, Zero };
 use bytemuck;
 use wgpu::util::DeviceExt;
 
@@ -8,13 +8,13 @@ use super::projection::Projection;
 
 
 pub struct Camera {
-    
     uniform: CameraUniform,
     buffer: wgpu::Buffer,
     pub bind_group: wgpu::BindGroup,
     pub bind_group_layout: wgpu::BindGroupLayout,
 
     proj: Projection,
+    screen_size: Vector2<u32>
 }
 
 pub struct CameraInitials {
@@ -28,13 +28,15 @@ pub struct CameraInitials {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
-    view_proj: [[f32; 4]; 4]
+    view_proj: [[f32; 4]; 4],
+    screen_size: [f32; 2],
+    _buffer: [f32; 6]
 }
 
 impl Camera {
-    pub fn new(device: &wgpu::Device, initials: CameraInitials) -> Self {
+    pub fn new(device: &wgpu::Device, initials: CameraInitials, screen_width: u32, screen_height: u32) -> Self {
         
-        let uniform = CameraUniform::new();
+        let uniform = CameraUniform::new(screen_width, screen_height);
 
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -71,12 +73,15 @@ impl Camera {
 
         let proj = Projection::new(&initials);
 
+        let screen_size = Vector2::new(screen_width, screen_height);
+
         Self {
             proj,
             uniform,
             buffer,
             bind_group,
             bind_group_layout,
+            screen_size,
         }
     }
 
@@ -89,17 +94,21 @@ impl Camera {
         return super::OPENGL_TO_WGPU_MATRIX * self.proj.calc_matrix() * view;
     }
 
-    pub fn update_camera(&mut self, queue: &wgpu::Queue, renderables: &Renderables) {
+    pub fn update_camera(&mut self, queue: &wgpu::Queue, renderables: &Renderables, screen_width: u32, screen_height: u32) {
         self.uniform.view_proj = self.build_view_projection_matrix(renderables.cam_pos, renderables.cam_dir).into();
+        self.screen_size.x = screen_width;
+        self.screen_size.y = screen_height;
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[self.uniform]));
     }
 }
 
 impl CameraUniform {
-    fn new() -> Self {
+    fn new(screen_width: u32, screen_height: u32) -> Self {
         use cgmath::SquareMatrix;
         Self {
             view_proj: cgmath::Matrix4::identity().into(),
+            screen_size: [screen_width as f32, screen_height as f32],
+            _buffer: [0.; 6]
         }
     }
 }
