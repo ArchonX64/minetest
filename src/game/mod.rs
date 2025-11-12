@@ -86,7 +86,7 @@ impl Game {
         sentences.push(Sentence {
             data: "Big Dick Forever".to_owned(),
             position: Vector3::new(11., 5., 10.),
-            direction: Quaternion::new(1., 0., 0., 0.),
+            direction: Quaternion::new(1., 0.5, 0.5, 0.5),
             text_style: TextStyle {
                 font: "Arial".to_owned(),
                 color: Vector4::new(0.5, 1., 1., 1.),

@@ -12,8 +12,7 @@ pub struct PersistentMetrics {
 }
 
 impl PersistentMetrics {
-    const METRIC_INTERVAL_SEC: f32 = 0.1;
-
+    const METRIC_INTERVAL_SEC: f32 = 0.05;
     pub fn new() -> Self {
         let metric_style = TextStyle {
             font: "Arial".to_owned(),
@@ -52,7 +51,7 @@ impl Graphics {
 
         // Player position
         renderables.sentences.push(Sentence {
-            data: format!("x: {:.1} y: {:.1} z: {:.1}",
+            data: format!("x: {:.2} y: {:.2} z: {:.2}",
                 self.metrics.last_cam_pos.x, self.metrics.last_cam_pos.y, self.metrics.last_cam_pos.z),
             position: Vector3::new(-1.0, 0.8, 0.1),
             direction: Quaternion::new(1., 0., 0., 0.),

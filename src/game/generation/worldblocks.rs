@@ -14,7 +14,7 @@ pub struct WorldBlocks {
 }
 
 impl WorldBlocks {
-    pub const TOUCH_TOLERANCE: f32 = 0.1;
+    pub const TOUCH_TOLERANCE: f32 = 0.05;
     pub const STACK_RENDER_BOUND: i32 = 3;
     pub const BLOCK_RENDER_COUNT: i32 = Slice::X_SIZE * Slice::Z_SIZE * Stack::MAX_HEIGHT * Self::STACK_RENDER_BOUND * Self::STACK_RENDER_BOUND;
 
@@ -34,7 +34,7 @@ impl WorldBlocks {
     }
 
     // Get a hashmap of coordinates and ids if a subset is small enough, for easier block checking
-    pub fn get_subset(& self, position: Point3<f32>, bounds: Vector3<f32>) -> HashMap<BlockCoords, BlockID> {
+    pub fn get_subset(&self, position: Point3<f32>, bounds: Vector3<f32>) -> HashMap<BlockCoords, BlockID> {
         // Determine which stacks
         let mut stacks: HashMap<StackCoords, &Stack> = HashMap::new();
         for x in [position.x - bounds.x, position.x + bounds.x] {
@@ -56,7 +56,7 @@ impl WorldBlocks {
         for (coords, stack) in stacks {
             for y in (position.y - bounds.y) as i32..(position.y + bounds.y) as i32 + 1 {
                 if let Some(slice) = stack.slices.get(&y) {
-                    let coords = BlockCoords { x: coords.x, y, z: coords.z };
+                    let coords = BlockCoords { x: coords.x * Slice::X_SIZE, y, z: coords.z * Slice::Z_SIZE };
                     slice.get_all_hash(&mut blocks, coords);
                 }
             }
@@ -67,6 +67,7 @@ impl WorldBlocks {
     pub fn is_touching(&self, collider: &BoxCollider, position: &Position) -> Vec<(BlockID, Vector3<i32>, f32)> {
         let mut collisions = Vec::new();
         let blocks = self.get_subset(position.vector, collider.bounds); // Guarentees a possible position
+        println!("{:?} {:?}", position.vector, collider.bounds);
         let (pos, bounds) = (position.vector, collider.bounds);
         let (corner_low, corner_high) = (pos - bounds, pos + bounds);
         let (corner_low_round, corner_high_round) = (corner_low.map(|x| x.round()), corner_high.map(|x| x.round()));
@@ -75,39 +76,39 @@ impl WorldBlocks {
         // Collects all the blocks that could be touching that face and the direction vector
         let mut possibilities = Vec::new();
         if (corner_low.x - corner_low_round.x).abs() < Self::TOUCH_TOLERANCE {
-            let blocks = range3d((corner_low.x.floor() as i32, corner_low.x.floor() as i32 + 1),
+            let blocks = range3d((corner_low.x.floor() as i32 - 1, corner_low.x.floor() as i32 + 1),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
             possibilities.push((blocks, Vector3 { x: -1, y: 0, z: 0}, corner_low.x - corner_low_round.x.round()));   
         }
         if (corner_high.x - corner_high.x.round()).abs() < Self::TOUCH_TOLERANCE {
-            let blocks = range3d((corner_high.x.ceil() as i32, corner_high.x.ceil() as i32 + 1),
+            let blocks = range3d((corner_high.x.ceil() as i32 - 1, corner_high.x.ceil() as i32 + 1),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
             possibilities.push((blocks, Vector3 { x: 1, y: 0, z: 0}, corner_high.x - corner_high.x.round()));
         }
         if (corner_low.y - corner_low.y.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32),
-                                 (corner_low.y.floor() as i32, corner_low.y.floor() as i32 + 1),
+                                 (corner_low.y.floor() as i32 - 1, corner_low.y.floor() as i32 + 1),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
             possibilities.push((blocks, Vector3 { x: 0, y: -1, z: 0}, corner_low.y - corner_low.y.round()));
         }
         if (corner_high.y - corner_high.y.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32),
-                                 (corner_high.y.ceil() as i32, corner_high.y.ceil() as i32 + 1),
+                                 (corner_high.y.ceil() as i32 - 1, corner_high.y.ceil() as i32 + 1),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
             possibilities.push((blocks, Vector3 { x: 0, y: 1, z: 0}, corner_high.y - corner_high.y.round()));
         }
         if (corner_low.z - corner_low.z.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
-                                 (corner_low.z.floor() as i32, corner_low.z.floor() as i32 + 1));
+                                 (corner_low.z.floor() as i32 - 1, corner_low.z.floor() as i32 + 1));
             possibilities.push((blocks, Vector3 { x: 0, y: 0, z: -1}, corner_low.z - corner_low.z.round()));
         }
         if (corner_high.z - corner_high.z.round()).abs() < Self::TOUCH_TOLERANCE {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32 + 1),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
-                                 (corner_high.z.ceil() as i32, corner_high.z.ceil() as i32 + 1));
+                                 (corner_high.z.ceil() as i32 - 1, corner_high.z.ceil() as i32 + 1));
             possibilities.push((blocks, Vector3 { x: 0, y: 0, z: 1}, corner_high.z - corner_high.z.round()));
         }
 

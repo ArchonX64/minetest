@@ -119,6 +119,7 @@ impl ApplicationHandler<Graphics> for Application {
             None => return,
         };
 
+
         match event {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => graphics.resize(size.width, size.height),
