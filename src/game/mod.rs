@@ -84,7 +84,7 @@ impl Game {
         let mut sentences = Vec::new();
 
         sentences.push(Sentence {
-            data: "Big Dick Forever".to_owned(),
+            data: "Rotated Text".to_owned(),
             position: Vector3::new(11., 5., 10.),
             direction: Quaternion::new(1., 0.5, 0.5, 0.5),
             text_style: TextStyle {
