@@ -1,22 +1,23 @@
 mod texture2d;
 mod depthtexture;
-mod text_render;
+pub mod text_render;
 mod camera;
 mod projection;
+mod metrics;
 pub mod cube_render;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use std::time::Instant;
 
 use anyhow;
 use winit::{window::Window};
-use cgmath::{Vector3, Vector4, Quaternion};
 
 use crate::game::renderables::Renderables;
 use cube_render::CubeRenderer;
-use text_render::{ FontRenderer, sentence::Sentence, text_style::TextStyle } ;
+use text_render::FontRenderer;
 use camera::{ Camera, CameraInitials };
 use depthtexture::DepthTexture;
+use metrics::PersistentMetrics;
 
 
 pub struct Graphics {
@@ -35,6 +36,7 @@ pub struct Graphics {
     font_renderer: FontRenderer,
     pub camera: Camera,
 
+    metrics: PersistentMetrics,
     last_frame: Instant,
     delta_time: f32,
 }
@@ -119,6 +121,7 @@ impl Graphics {
             cube_renderer,
             font_renderer,
             camera,
+            metrics: PersistentMetrics::new(),
             last_frame: Instant::now(),
             delta_time: 0., // We don't want anything using this until the first frame is rendered!
             // Not an option due to performance concerns
@@ -136,43 +139,17 @@ impl Graphics {
         }
     }
 
-    fn render_inject(graphics: &mut Graphics, render_pass: &mut wgpu::RenderPass, renderables: Renderables) {
+    fn render_inject(graphics: &mut Graphics, render_pass: &mut wgpu::RenderPass, renderables: &mut Renderables) {
+        // Metrics
+        graphics.metrics(renderables);
+
+        // Render classes
         graphics.cube_renderer.render(render_pass, &graphics.queue, &graphics.camera.bind_group, 
                                      &renderables.cubes);
-        
-        let mut sentences = Vec::new();
-
-        sentences.push(Sentence {
-            data: "Test text".to_owned(),
-            position: Vector3::new(0.0, 0., 0.1),
-            direction: Quaternion::new(1., 0., 0., 0.),
-            text_style: TextStyle {
-                font: "Arial".to_owned(),
-                color: Vector4::new(1., 1., 1., 1.),
-                scale: 1.,
-                affected_by_camera: false
-            }
-        });
-
-        
-        sentences.push(Sentence {
-            data: format!("{} FPS", 1. / graphics.delta_time),
-            position: Vector3::new(-1.0, 0.9, 0.1),
-            direction: Quaternion::new(1., 0., 0., 0.),
-            text_style: TextStyle {
-                font: "Arial".to_owned(),
-                color: Vector4::new(1., 1., 1., 1.),
-                scale: 2.,
-                affected_by_camera: false
-            }
-        });
-        
-
-        graphics.font_renderer.render_sentences(sentences, render_pass, &graphics.queue, &graphics.camera.bind_group);
-        
+        graphics.font_renderer.render_sentences(&renderables.sentences, render_pass, &graphics.queue, &graphics.camera.bind_group);
     }
 
-    pub fn render(&mut self, renderables: Renderables) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, renderables: &mut Renderables) -> Result<(), wgpu::SurfaceError> {
         // Delta time
         self.delta_time = (Instant::now() - self.last_frame).as_secs_f32();
         self.last_frame = Instant::now();

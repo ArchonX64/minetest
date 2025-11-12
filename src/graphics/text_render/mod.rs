@@ -20,7 +20,6 @@ use cgmath::{ ElementWise, Vector2, Vector3, Zero };
 use wgpu::{ Device, Queue, BindGroupLayout, util::DeviceExt };
 use ab_glyph::{ Font, FontRef, GlyphId, OutlinedGlyph, PxScaleFont, ScaleFont };
 use rect_packer::Packer;
-//use image::{ImageBuffer, Rgba};
 
 pub struct FontRenderer {
     fonts: HashMap<String, FontData>,
@@ -195,7 +194,7 @@ impl FontRenderer {
         }
     }
 
-    pub fn render_sentences(&self, sentences: Vec<Sentence>, render_pass: &mut wgpu::RenderPass,
+    pub fn render_sentences(&self, sentences: &Vec<Sentence>, render_pass: &mut wgpu::RenderPass,
                          queue: &Queue, camera: &wgpu::BindGroup) {
         let mut instances = Vec::new();
         for sentence_data in sentences {
@@ -209,14 +208,12 @@ impl FontRenderer {
 
                 let instance = FontInstance {
                     sentence_position: sentence_data.position,
-                    letter_position: Vector3::new(advance + glyph.bearing.x, -glyph.bearing.y, 0.),
+                    letter_position: Vector3::new(advance + glyph.bearing.x, -glyph.bearing.y, 0.) * sentence_data.text_style.scale,
                     direction: sentence_data.direction,
                     tex_offset: glyph.position,
                     tex_size: glyph.size,
                     text_style: sentence_data.text_style.clone()
                 };
-
-                println!("letter={} bearing_y={}", letter, glyph.bearing.y);
                 
                 sentence_drawn.push(instance);
 
@@ -255,8 +252,6 @@ impl FontRenderer {
         let raw = instances_sorted.iter()
             .map(|x| x.to_raw())
             .collect::<Vec<_>>();
-
-        //raw.iter().for_each(|x| println!("{:.?}", x));
 
         queue.write_buffer(&self.instance_buffer, 0, bytemuck::cast_slice(&raw));
 

@@ -39,19 +39,15 @@ fn vs_main(model: VertexInput, instance: InstanceInput) -> VertexOutput {
 
     if instance.affected_by_camera == 1u {
         // Primary output
-        let pos_rotated = rotate_vec3_by_quat(model.vert_pos, instance.direction);
+       let letter_pos_cs = instance.letter_position_px / vec3<f32>(uni.screen_size, 1.0) + instance.sentence_position;
+        let scaled_vert = model.vert_pos * vec3<f32>(instance.tex_size * instance.scale / uni.screen_size, 0);
 
-        out.clip_position = uni.view_proj * vec4<f32>(pos_rotated * instance.scale + instance.sentence_position, 1);
+        out.clip_position = uni.view_proj * vec4<f32>(scaled_vert + letter_pos_cs, 1);
     } else {
-        let letter_pos_norm = instance.letter_position_px.xy / uni.screen_size;
-        let letter_position_cs = vec3<f32>(
-            letter_pos_norm.x,
-            letter_pos_norm.y,
-            0.0
-        ) + instance.sentence_position;
-        let scaled_vert = model.vert_pos * vec3<f32>(instance.tex_size / uni.screen_size, 0);
+        let letter_pos_cs = instance.letter_position_px / vec3<f32>(uni.screen_size, 1.0) + instance.sentence_position;
+        let scaled_vert = model.vert_pos * vec3<f32>(instance.tex_size * instance.scale / uni.screen_size, 0);
 
-        out.clip_position = vec4<f32>(scaled_vert + letter_position_cs, 1);
+        out.clip_position = vec4<f32>(scaled_vert + letter_pos_cs, 1);
     }
 
     // Send to fragment

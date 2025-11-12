@@ -123,7 +123,7 @@ impl ApplicationHandler<Graphics> for Application {
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::Resized(size) => graphics.resize(size.width, size.height),
             WindowEvent::RedrawRequested => {
-                match graphics.render(self.game.get_renderables()) {
+                match graphics.render(&mut self.game.get_renderables()) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         let size = graphics.window.inner_size();
