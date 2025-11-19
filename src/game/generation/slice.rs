@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cgmath::Point3;
+use cgmath::{Point3, Vector2};
 
 use crate::graphics::cube_render::cube_instance::CubeInstance;
 use super::super::units::{BlockCoords, BlockID};
@@ -22,10 +22,15 @@ impl Slice {
         }
     }
 
+    // Vector2 represents stack on its own
     // Increases x, then z
     // Every z contains Self::XSIZE number of x values
-    pub fn get(&self, loc: BlockCoords) -> BlockID {
-        self.blocks[(loc.x + loc.z * Self::X_SIZE) as usize]
+    pub fn get(&self, position: BlockCoords) -> BlockID {
+        self.blocks[Self::coords_to_array_pos(position)]
+    }
+
+    pub fn set_block(&mut self, position: BlockCoords, id: BlockID) {
+        self.blocks[Self::coords_to_array_pos(position)] = id;
     }
 
     pub fn get_all_hash(&self, map: &mut HashMap<BlockCoords, BlockID>, offset: BlockCoords) {
@@ -40,11 +45,17 @@ impl Slice {
 
     pub fn get_all(&self, storage: &mut Vec<CubeInstance>, offset: BlockCoords) {
         for (i, block) in (0i32..).zip(self.blocks.iter().copied()) {
-            storage.push(CubeInstance{ tex_index: (block as u32) - 1, position: cgmath::Point3 {
+            if block == 0 { continue } // Just air, no need for rendering
+
+            storage.push(CubeInstance{ tex_index: (block as u32) - 1, position: Point3 {
                 x: (offset.x + (i % Self::X_SIZE)) as f32,
                 y: offset.y as f32,
                 z: (offset.z + (i / Self::X_SIZE)) as f32 
             }});
         }
+    }
+
+    pub fn coords_to_array_pos(pos: BlockCoords) -> usize {
+        return (pos.x + pos.z * Self::X_SIZE) as usize;
     }
 }

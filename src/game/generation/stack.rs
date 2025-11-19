@@ -1,5 +1,7 @@
 use std::collections::{ HashMap };
 
+use crate::game::generation::worldblocks::WorldBlocks;
+use crate::game::units::WorldCoords;
 use crate::graphics::cube_render::cube_instance::CubeInstance;
 use super::slice::Slice;
 use super::active_block::ActiveBlock;
@@ -33,11 +35,25 @@ impl Stack {
         stack
     }
 
-    pub fn get(&self, loc: BlockCoords) -> BlockID {
+    // Must be local stack coords!
+    pub fn get_block(&self, loc: BlockCoords) -> BlockID {
         match self.slices.get(&loc.y) {
             Some(slice) => slice.get(loc),
             None => 0
         }
+    }
+
+    pub fn set_block(&mut self, position: BlockCoords, id: BlockID) {
+        let slice = match self.slices.get_mut(&position.y) {
+            Some(slice) => slice,
+            None => {
+                let slice = Slice::new(0);
+                self.slices.insert(position.y, slice);
+                self.slices.get_mut(&position.y).unwrap()
+            }
+        };
+
+        slice.set_block(position, id);
     }
 
     pub fn all_blocks(&self, storage: &mut Vec<CubeInstance>, coords: StackCoords) {
@@ -51,10 +67,10 @@ impl Stack {
         };
     }
 
-    pub fn to_stack_coords(position: &EntityCoords) -> StackCoords {
+    pub fn to_stack_coords(position: &WorldCoords) -> StackCoords {
         StackCoords {
             x: (position.x / Slice::X_SIZE as f32).floor() as i32,
-            z: (position.z / Slice::Z_SIZE as f32).floor() as i32
+            z: (position.z / Slice::Z_SIZE as f32).floor() as i32,
         }
     }
 

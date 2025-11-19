@@ -63,6 +63,10 @@ impl Application {
             None => {}
         }
     }
+
+    pub fn on_ready(&mut self) {
+        self.game.reset_deltatime(); // Reset to prevent deltatime accumulation during loading
+    }
 }
 
 impl ApplicationHandler<Graphics> for Application {
@@ -77,15 +81,16 @@ impl ApplicationHandler<Graphics> for Application {
             window.set_cursor_visible(false);
 
             self.graphics = Some(pollster::block_on(Graphics::new(window)).unwrap());
+            self.on_ready();
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-
-        self.game.tick(self.get_input());  // Trigger game loop
-        
         // Trigger rendering
         match &self.graphics {
-            Some(graphics) => graphics.window.request_redraw(),
+            Some(graphics) => {
+                self.game.tick(self.get_input());  // Trigger game loop
+                graphics.window.request_redraw();
+            },
             None => {}
         }
 
