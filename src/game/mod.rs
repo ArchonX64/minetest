@@ -30,7 +30,10 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        let blocks = WorldBlocks::test_layout();
+        let mut blocks = WorldBlocks::test_layout();
+        blocks.set_block(Point3::new(13, 5, 10), 1);
+        blocks.set_block(Point3::new(13, 4, 10), 1);
+        
         let mut world = legion::World::default();
         player::generate_main_player(&mut world);
 
@@ -72,9 +75,13 @@ impl Game {
 
         self.pre_collision_schedule.execute(&mut self.world, &mut self.resources);
 
-        self.post_collision_schedule.execute(&mut self.world, &mut self.resources);
-
         components::collision::block_collide(&mut self.world, &self.blocks);
+
+        self.post_collision_schedule.execute(&mut self.world, &mut self.resources);
+    }
+
+    pub fn reset_deltatime(&mut self) {
+        self.last_tick = Instant::now();
     }
 
     pub fn get_renderables(&mut self) -> Renderables {
