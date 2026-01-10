@@ -14,5 +14,5 @@ pub struct StackCoords {
 }
 
 pub fn to_block_coord(position: WorldCoords) -> BlockCoords{
-    return position.map(|c| c.floor() as i32);
+    return position.map(|c| (c + 0.5).floor() as i32);
 }

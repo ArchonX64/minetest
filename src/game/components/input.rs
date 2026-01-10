@@ -4,6 +4,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 
 use super::spatial::{Direction, Position};
 use super::time::Time;
+use crate::game::units::to_block_coord;
 use crate::game::components::spatial::Velocity;
 use crate::game::generation::worldblocks::WorldBlocks;
 use crate::{application::Input, util::lerp};
@@ -67,7 +68,7 @@ fn player_movement(
     {
         movement_vec -= dir.vector.cross(Vector3::unit_y());
     }
-    if input.pressed_keys.contains_key(&KeyCode::Space) {
+    if input.pressed_keys.get(&KeyCode::Space).is_some_and(|space| *space) {
         vel.vector.y += movement.jump_vel;
     }
 
@@ -90,8 +91,8 @@ fn look_around(
     look.true_dy =
         lerp(input.mouse_dy as f32, look.true_dy, look.alpha) * look.sensitivity * time.dt;
 
-    look.yaw += look.true_dx as f32 * look.sensitivity;
-    look.pitch += -look.true_dy as f32 * look.sensitivity;
+    look.yaw += look.true_dx as f32;
+    look.pitch += -look.true_dy as f32;
 
     if look.pitch > 89.0 {
         look.pitch = 89.0
@@ -119,6 +120,7 @@ fn place_block(
         if let Some((loc, block, face)) = blocks.get_raycast_intersect(pos.vector, player.reach, dir.vector) {  // If intersecting a block
             if blocks.get_block(loc + face).is_some_and(|block| block == 0) {                                                              // If block is loaded in and is air
                 blocks.set_block(loc + face, 1);                                                                                               // Set the block equal to grass for now
+                blocks.set_block(to_block_coord(pos.vector), 1);
             }
         }
     }

@@ -43,7 +43,7 @@ fn apply_velocity(pos: &mut Position, vel: &Velocity, #[resource] time: &Time ) 
     pos.vector += vel.vector * time.dt;
 }
 
-const GRAVITY: f32 = 9.8;
+const GRAVITY: f32 = 20.;
 #[system(for_each)]
 fn apply_gravity(vel: &mut Velocity, _grav: &Gravity, #[resource] time: &Time) {
     vel.vector.y -= GRAVITY * time.dt;

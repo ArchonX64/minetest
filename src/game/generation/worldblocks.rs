@@ -213,9 +213,10 @@ impl WorldBlocks {
         let mut curblock = to_block_coord(position).clone();
 
         let mut blocks = Vec::new();
+        let mut distance = 0.;
         //println!("===== BEGIN RAYCAST =====");
         loop {
-            // Calculate a factor that represents ability to get to side quickest
+            // Calculate a factor that represents ability to get to a face quickest
             // Usually, the ray goes from a spot inside the cube towards the nearest edge.
             // Other times, we are already at the edge, and we must find the next edge to travel towards
             let deltas = curpos.zip(dirvec, |p, d| {
@@ -228,19 +229,22 @@ impl WorldBlocks {
                 }
             });
 
-            // Determine which side is reached first
+            // The one with the smallest delta will be the one traveled to reach the nearest face
+            // Travel them all simultaneously, and then check which one hits a face
+            let min_delta = deltas.x.min(deltas.y).min(deltas.z);
+            curpos += dirvec * min_delta;
+            distance += min_delta; // Somehow the min_delta is the distance idk i trust math
+
+            // Determine if a face has been reached (one is guarenteed due to minimum check)
             let mut curface = Vector3::zero();
-            if !deltas.x.is_nan() && deltas.x <= deltas.y && deltas.x <= deltas.z {
-                curpos += dirvec * deltas.x;
+            if (deltas.x - min_delta).abs() < EPSILON {
                 curblock.x += dirvec.x.signum() as i32;
-                curface = Vector3::unit_x() * (-dirvec.x.signum() as i32);
-            } if !deltas.y.is_nan() && deltas.y <= deltas.x && deltas.y <= deltas.z {
-                curpos += dirvec * deltas.y;
+                curface += Vector3::unit_x() * (-dirvec.x.signum() as i32);
+            } if (deltas.y - min_delta).abs() < EPSILON {
                 curblock.y += dirvec.y.signum() as i32;
                 curface += Vector3::unit_y() * (-dirvec.y.signum() as i32);
             } 
-            if !deltas.z.is_nan() && deltas.z <= deltas.x && deltas.z <= deltas.y {
-                curpos += dirvec * deltas.z;
+            if (deltas.z - min_delta).abs() < EPSILON {
                 curblock.z += dirvec.z.signum() as i32;
                 curface += Vector3::unit_z() * (-dirvec.z.signum() as i32);
             }
@@ -255,7 +259,7 @@ impl WorldBlocks {
             //println!("Distance: {:?}", position.distance(Point3::from_vec(curpos)));
             
             // Stop and return the raycast if the length has been reached
-            if position.distance(Point3::from_vec(curpos)) > length {
+            if distance > length {
                 return blocks
             }
 
