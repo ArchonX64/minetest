@@ -1,4 +1,5 @@
-use std::{collections::HashSet, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::graphics::Graphics;
@@ -15,7 +16,8 @@ pub struct Application {
     graphics: Option<Graphics>,
     game: Game,
 
-    pressed_keys: HashSet<KeyCode>,
+    pressed_keys: HashMap<KeyCode, bool>,  // Bool represents if its been reacted to yet
+    mouse_buttons: HashMap<MouseButton, bool>,
     alpha: f64,
     mouse_x: f64,
     mouse_y: f64,
@@ -24,7 +26,8 @@ pub struct Application {
 }
 
 pub struct Input {
-    pub pressed_keys: Vec<KeyCode>,
+    pub pressed_keys: HashMap<KeyCode, bool>,
+    pub mouse_buttons: HashMap<MouseButton, bool>,
     pub mouse_x: f64,
     pub mouse_y: f64,
     pub mouse_dx: f64,
@@ -37,7 +40,8 @@ impl Application {
 
         Self {
             graphics: None,
-            pressed_keys: HashSet::new(),
+            pressed_keys: HashMap::new(),
+            mouse_buttons: HashMap::new(),
             game,
             alpha: 0.5,
             mouse_x: 0.,
@@ -49,7 +53,8 @@ impl Application {
 
     pub fn get_input(&self) -> Input {
         Input {
-            pressed_keys: self.pressed_keys.iter().copied().collect(),
+            pressed_keys: self.pressed_keys.clone(),
+            mouse_buttons: self.mouse_buttons.clone(),
             mouse_x: self.mouse_x,
             mouse_y: self.mouse_y,
             mouse_dx: self.mouse_dx,
@@ -90,6 +95,14 @@ impl ApplicationHandler<Graphics> for Application {
             Some(graphics) => {
                 self.game.tick(self.get_input());  // Trigger game loop
                 graphics.window.request_redraw();
+
+                // Deactivate buttons
+                for active in self.pressed_keys.values_mut() {
+                    *active = false;
+                }
+                for active in self.mouse_buttons.values_mut() {
+                    *active = false;
+                }
             },
             None => {}
         }
@@ -150,7 +163,7 @@ impl ApplicationHandler<Graphics> for Application {
                 ..
              } => {
                 if key_state == ElementState::Pressed {
-                    self.pressed_keys.insert(code);
+                    self.pressed_keys.insert(code, true);
                 }
                 if key_state == ElementState::Released {
                     self.pressed_keys.remove(&code);
@@ -163,6 +176,18 @@ impl ApplicationHandler<Graphics> for Application {
                     _ => {}
                 }
              },
+            WindowEvent::MouseInput { 
+                device_id, 
+                state, 
+                button 
+            } => {
+                if state == ElementState::Pressed {
+                    self.mouse_buttons.insert(button, true);
+                }
+                if state == ElementState::Released {
+                    self.mouse_buttons.remove(&button);
+                }
+            }
              _ => {}
         }
     }

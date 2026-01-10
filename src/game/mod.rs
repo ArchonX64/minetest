@@ -4,10 +4,9 @@ mod player;
 pub mod components;
 pub mod renderables;
 
-use cgmath::{ Vector3, Vector4, Point3, Quaternion };
+use cgmath::{ Point3, Quaternion, Vector3, Vector4, Zero };
 use legion::{self, Schedule, IntoQuery};
 use std::time::Instant;
-
 
 use renderables::Renderables;
 use generation::worldblocks::WorldBlocks;
@@ -17,7 +16,6 @@ use crate::graphics::text_render::{ text_style::TextStyle, sentence::Sentence };
 use components::{ time::Time, spatial::{ Direction, Position }};
 
 pub struct Game {
-    blocks: WorldBlocks,
     world: legion::World,
     pre_collision_schedule: legion::Schedule,
     post_collision_schedule: legion::Schedule,
@@ -29,20 +27,23 @@ pub struct Game {
 
 
 impl Game {
-    pub fn new() -> Self {
-        let mut blocks = WorldBlocks::test_layout();
-        blocks.set_block(Point3::new(13, 5, 10), 1);
-        blocks.set_block(Point3::new(13, 4, 10), 1);
-        
+    pub fn new() -> Self {        
         let mut world = legion::World::default();
         player::generate_main_player(&mut world);
 
+        let mut resources = legion::Resources::default();
+
+        let mut blocks = WorldBlocks::test_layout();
+        blocks.set_block(Point3::new(13, 5, 10), 1);
+        blocks.set_block(Point3::new(13, 4, 10), 1);
+
+        resources.insert(blocks);
+
         Self {
-            blocks,
             world,
             pre_collision_schedule: Game::generate_precollision_schedule(),
             post_collision_schedule: Game::generate_postcollision_schedule(),
-            resources: legion::Resources::default(),
+            resources,
             last_tick: Instant::now(),
             dt: 0.
         }
@@ -75,9 +76,10 @@ impl Game {
 
         self.pre_collision_schedule.execute(&mut self.world, &mut self.resources);
 
-        components::collision::block_collide(&mut self.world, &self.blocks);
+        components::collision::block_collide(&mut self.world, &self.resources);
 
         self.post_collision_schedule.execute(&mut self.world, &mut self.resources);
+        
     }
 
     pub fn reset_deltatime(&mut self) {
@@ -105,7 +107,7 @@ impl Game {
         Renderables {
             cam_dir,
             cam_pos,
-            cubes: self.blocks.get_renderable_blocks(cam_pos),
+            cubes: self.resources.get::<WorldBlocks>().unwrap().get_renderable_blocks(cam_pos),
             sentences,
         }
     }

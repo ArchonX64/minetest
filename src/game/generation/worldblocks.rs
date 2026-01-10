@@ -1,7 +1,8 @@
+use core::f32;
 use std::collections::HashMap;
-use cgmath::{ ElementWise, Vector3 };
+use cgmath::{ ElementWise, EuclideanSpace, InnerSpace, MetricSpace, Point3, Vector3, Zero };
 
-use crate::util::range3d;
+use crate::util::{ range3d, EPSILON };
 use crate::game::units::{BlockCoords, WorldCoords, BlockID};
 use crate::graphics::cube_render::cube_instance::CubeInstance;
 use super::stack::Stack;
@@ -86,7 +87,7 @@ impl WorldBlocks {
     }
 
     // Get a hashmap of coordinates and ids if a subset is small enough, for easier block checking
-    pub fn get_subset(&self, position: WorldCoords, bounds: Vector3<f32>) -> HashMap<BlockCoords, BlockID> {
+    pub fn get_subset_from_center(&self, position: WorldCoords, bounds: Vector3<f32>) -> HashMap<BlockCoords, BlockID> {
         // Determine which stacks
         let mut stacks: HashMap<StackCoords, &Stack> = HashMap::new();
         for x in [position.x - bounds.x, position.x + bounds.x] {
@@ -110,9 +111,32 @@ impl WorldBlocks {
         blocks
     }
 
+    pub fn get_subset(&self, bound1: WorldCoords, bound2: WorldCoords) -> HashMap<BlockCoords, BlockID> {
+        let mut stacks: HashMap<StackCoords, &Stack> = HashMap::new();
+        for x in [bound1.x.min(bound2.x), bound1.x.max(bound2.x)] {
+            for z in [bound1.z.min(bound2.z), bound1.x.max(bound2.z)] {
+                match self.get_stack_at(to_block_coord(WorldCoords { x, y: 0., z})) {
+                    Some((coords, _, stack)) => { stacks.insert(coords, &stack); },
+                    None => {},
+                }
+            }
+        }
+
+        let mut blocks: HashMap<BlockCoords, BlockID> = HashMap::new();
+        for (coords, stack) in stacks {
+            for y in (bound1.y.min(bound2.y)) as i32..(bound1.y.max(bound2.y)) as i32 + 1 {
+                if let Some(slice) = stack.slices.get(&y) {
+                    let coords = BlockCoords { x: coords.x * Slice::X_SIZE, y, z: coords.z * Slice::Z_SIZE };
+                    slice.get_all_hash(&mut blocks, coords);
+                }
+            }
+        };
+        blocks
+    }
+
     pub fn get_block_contact(&self, collider: &BoxCollider, position: &Position) -> Vec<(BlockID, Vector3<i32>, f32)> {
         let mut collisions = Vec::new();
-        let blocks = self.get_subset(position.vector, collider.bounds); // Guarentees a possible position
+        let blocks = self.get_subset_from_center(position.vector, collider.bounds); // Guarentees a possible position
         let (pos, bounds) = (position.vector, collider.bounds);
         let (corner_low, corner_high) = (pos - bounds, pos + bounds);
         let (corner_low_round, corner_high_round) = (corner_low.map(|c| c.round()), corner_high.map(|c| c.round()));
@@ -179,7 +203,83 @@ impl WorldBlocks {
         collisions
     }
 
-    pub fn get_renderable_blocks(&mut self, position: EntityCoords) -> Vec<CubeInstance> {
+    // Get all blocks hit by a raycast
+    // Returns a list of tuples containing block properties and the face
+    pub fn get_raycast(&self, position: WorldCoords, length: f32, direction: Vector3<f32>) -> Vec<(BlockCoords, BlockID, Vector3<i32>)> {
+        let dirvec = direction.normalize();
+        let subset = self.get_subset(position, position + dirvec * length);
+
+        let mut curpos = position.clone().to_vec();
+        let mut curblock = to_block_coord(position).clone();
+
+        let mut blocks = Vec::new();
+        //println!("===== BEGIN RAYCAST =====");
+        loop {
+            // Calculate a factor that represents ability to get to side quickest
+            // Usually, the ray goes from a spot inside the cube towards the nearest edge.
+            // Other times, we are already at the edge, and we must find the next edge to travel towards
+            let deltas = curpos.zip(dirvec, |p, d| {
+                if d.abs() < EPSILON {
+                    f32::INFINITY
+                } else if d > 0. {
+                    (if (p - p.ceil()).abs() > EPSILON { p.ceil() - p } else { 1. } / d).abs()
+                } else {
+                    (if (p - p.floor()).abs() > EPSILON { p - p.floor() } else { -1. } / d).abs()
+                }
+            });
+
+            // Determine which side is reached first
+            let mut curface = Vector3::zero();
+            if !deltas.x.is_nan() && deltas.x <= deltas.y && deltas.x <= deltas.z {
+                curpos += dirvec * deltas.x;
+                curblock.x += dirvec.x.signum() as i32;
+                curface = Vector3::unit_x() * (-dirvec.x.signum() as i32);
+            } if !deltas.y.is_nan() && deltas.y <= deltas.x && deltas.y <= deltas.z {
+                curpos += dirvec * deltas.y;
+                curblock.y += dirvec.y.signum() as i32;
+                curface += Vector3::unit_y() * (-dirvec.y.signum() as i32);
+            } 
+            if !deltas.z.is_nan() && deltas.z <= deltas.x && deltas.z <= deltas.y {
+                curpos += dirvec * deltas.z;
+                curblock.z += dirvec.z.signum() as i32;
+                curface += Vector3::unit_z() * (-dirvec.z.signum() as i32);
+            }
+            if curface.is_zero() {
+                panic!("Block raycast failed due to all directional delta components being NAN, or a failure in the ordering promise.")
+            }
+
+            //println!("Dirvec: {:?}", dirvec);
+            //println!("Deltas: {:?}", deltas);
+            //println!("Curpos: {:?}", curpos);
+            //println!("Curblock: {:?}", curblock);
+            //println!("Distance: {:?}", position.distance(Point3::from_vec(curpos)));
+            
+            // Stop and return the raycast if the length has been reached
+            if position.distance(Point3::from_vec(curpos)) > length {
+                return blocks
+            }
+
+            // Append block if length has not yet been reached, do not add if not generated yet
+            if let Some(block) = subset.get(&curblock) {
+                blocks.push((curblock.clone(), *block, curface.clone()));
+            }
+            
+        };
+    }
+
+    //Get the first non-air block hit by a raycast
+    pub fn get_raycast_intersect(&self, position: WorldCoords, length: f32, direction: Vector3<f32>) -> Option<(BlockCoords, BlockID, Vector3<i32>)> {
+        for (loc, block, face) in self.get_raycast(position, length, direction) {
+            if block != 0 {
+                //println!("Block placement successful, found block at {:?}, placed block at {:?}", loc, loc + face);
+                return Some((loc, block, face))
+            }
+        };
+        //println!("Did not find a non-air block within range");
+        None
+    }
+
+    pub fn get_renderable_blocks(&self, position: EntityCoords) -> Vec<CubeInstance> {
         // Render the 3x3 chunk area around player
         let mut blocks = Vec::with_capacity(Self::BLOCK_RENDER_COUNT as usize);
         let stackcoords = Stack::to_stack_coords(&position);
