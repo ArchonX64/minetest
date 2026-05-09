@@ -1,11 +1,10 @@
 mod character;
 mod font;
-mod font_vertex;
 mod font_instance;
 pub mod text_style;
 pub mod sentence;
 
-use font_vertex::{ FontVertex, FONT_VERTICES, FONT_INDEXES };
+use super::image2d_render::image2d_vertex::Image2DVertex;
 use font_instance::{ FontInstance, FontInstanceRaw };
 use character::FontCharacter;
 use font::FontData;
@@ -43,13 +42,13 @@ impl FontRenderer {
         // -- BUFFER INIT --
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Font Vertex Buffer"),
-            contents: bytemuck::cast_slice(FONT_VERTICES),
+            contents: bytemuck::cast_slice(Image2DVertex::VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Font Index Buffer"),
-            contents: bytemuck::cast_slice(FONT_INDEXES),
+            contents: bytemuck::cast_slice(Image2DVertex::INDEXES),
             usage: wgpu::BufferUsages::INDEX
         });
 
@@ -74,7 +73,7 @@ impl FontRenderer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[FontVertex::LAYOUT, FontInstanceRaw::LAYOUT],
+                buffers: &[Image2DVertex::LAYOUT, FontInstanceRaw::LAYOUT],
                 compilation_options: wgpu::PipelineCompilationOptions::default()
             },
             fragment: Some(wgpu::FragmentState {
@@ -262,7 +261,7 @@ impl FontRenderer {
             
             render_pass.set_bind_group(1, &font.texture.bind_group, &[]);
 
-            render_pass.draw_indexed(0..FONT_INDEXES.len() as u32, 0, prev..prev + size);
+            render_pass.draw_indexed(0..Image2DVertex::INDEXES.len() as u32, 0, prev..prev + size);
 
             prev += size
         };

@@ -21,6 +21,7 @@ impl CubeInstance {
 }
 
 impl CubeInstanceRaw { 
+    pub const SIZE: u64 = 4;
     pub const LAYOUT: wgpu::VertexBufferLayout<'static> = wgpu::VertexBufferLayout {
         array_stride: std::mem::size_of::<CubeInstanceRaw>() as wgpu::BufferAddress,
         step_mode: wgpu::VertexStepMode::Instance,

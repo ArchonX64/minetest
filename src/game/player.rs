@@ -11,10 +11,10 @@ pub fn generate_main_player(world: &mut World) {
         Velocity::zero(),
         Direction::zero(),
         Gravity,
-        PlayerInput { speed: 0.1, jump_vel: 10., reach: 10. },
+        PlayerInput { speed: 2., jump_vel: 10., reach: 10. },
         MouseLook::base(30., 1.),
         Camera,
         BoxCollider { bounds: Vector3 { x: 1., y: 2., z: 1.} },
-        CollidesWithBlocks,
+        CollidesWithBlocks::new(),
     ));
 }

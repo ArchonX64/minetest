@@ -3,10 +3,11 @@ mod depthtexture;
 pub mod text_render;
 mod camera;
 mod projection;
-mod metrics;
+mod ingame_gui;
 pub mod cube_render;
+pub mod image2d_render;
 
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow;
@@ -17,7 +18,7 @@ use cube_render::CubeRenderer;
 use text_render::FontRenderer;
 use camera::{ Camera, CameraInitials };
 use depthtexture::DepthTexture;
-use metrics::PersistentMetrics;
+use ingame_gui::InGameGUI;
 
 
 pub struct Graphics {
@@ -36,7 +37,7 @@ pub struct Graphics {
     font_renderer: FontRenderer,
     pub camera: Camera,
 
-    metrics: PersistentMetrics,
+    gui: InGameGUI,
     last_frame: Instant,
     delta_time: f32,
 }
@@ -109,6 +110,8 @@ impl Graphics {
         let mut font_renderer = FontRenderer::new(&device, config.format, &camera.bind_group_layout);
         font_renderer.add_font(&device, &queue, "Arial", 100., include_bytes!("../../resources/fonts/arial.ttf"));
 
+        let gui = InGameGUI::new(&device, &queue);
+
         Ok(Self {
             surface,
             surface_format,
@@ -121,7 +124,7 @@ impl Graphics {
             cube_renderer,
             font_renderer,
             camera,
-            metrics: PersistentMetrics::new(),
+            gui,
             last_frame: Instant::now(),
             delta_time: 0., // We don't want anything using this until the first frame is rendered!
             // Not an option due to performance concerns
@@ -141,7 +144,7 @@ impl Graphics {
 
     fn render_inject(graphics: &mut Graphics, render_pass: &mut wgpu::RenderPass, renderables: &mut Renderables) {
         // Metrics
-        graphics.metrics(renderables);
+        graphics.render_metrics(renderables);
 
         // Render classes
         graphics.cube_renderer.render(render_pass, &graphics.queue, &graphics.camera.bind_group, 

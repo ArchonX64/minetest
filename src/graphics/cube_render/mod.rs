@@ -38,7 +38,7 @@ impl CubeRenderer {
 
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Cube Instance Buffer"),
-            size: (std::mem::size_of::<f32>() as u64) * 4 * Self::MAX_INSTANCES,
+            size: (std::mem::size_of::<f32>() as u64) * CubeInstanceRaw::SIZE * Self::MAX_INSTANCES,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false
         });

@@ -52,14 +52,13 @@ impl Game {
     pub fn generate_precollision_schedule() -> Schedule {
         let mut scheduler = legion::Schedule::builder();
 
-        components::input::schedule(&mut scheduler);
-
         return scheduler.build()
     }
 
     pub fn generate_postcollision_schedule() -> Schedule {
         let mut scheduler = legion::Schedule::builder();
 
+        components::input::schedule(&mut scheduler);
         components::spatial::schedule(&mut scheduler);
 
         return scheduler.build()

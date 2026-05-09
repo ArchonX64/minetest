@@ -4,6 +4,7 @@ use winit::{event::MouseButton, keyboard::KeyCode};
 
 use super::spatial::{Direction, Position};
 use super::time::Time;
+use crate::game::components::collision::CollidesWithBlocks;
 use crate::game::units::to_block_coord;
 use crate::game::components::spatial::Velocity;
 use crate::game::generation::worldblocks::WorldBlocks;
@@ -43,11 +44,25 @@ fn player_movement(
     dir: &Direction,
     pos: &mut Position,
     vel: &mut Velocity,
+    cwb: &CollidesWithBlocks,
     #[resource] input: &Input,
     #[resource] time: &Time,
+    #[resource] blocks: &WorldBlocks
 ) {
-    let mut movement_vec = Vector3::new(0.0, 0.0, 0.0);
+    if cwb.collisions.y < 0 { // Collision from below
+        player_ground_movement(input, dir, vel, movement, time);
+    } else {
+        player_air_movement(input, movement, dir, vel);
+    }
+}
 
+fn player_ground_movement(input: &Input, dir: &Direction, vel: &mut Velocity, movement: &PlayerInput, time: &Time) {
+    // Lateral movement is set to zero
+    vel.vector.x = 0.;
+    vel.vector.z = 0.;
+
+    // Set up a normalized movement vector
+    let mut movement_vec = Vector3::new(0.0, 0.0, 0.0);
     if input.pressed_keys.contains_key(&KeyCode::KeyW)
         || input.pressed_keys.contains_key(&KeyCode::ArrowUp)
     {
@@ -68,14 +83,47 @@ fn player_movement(
     {
         movement_vec -= dir.vector.cross(Vector3::unit_y());
     }
-    if input.pressed_keys.get(&KeyCode::Space).is_some_and(|space| *space) {
-        vel.vector.y += movement.jump_vel;
-    }
-
     movement_vec.y = 0.;
     if movement_vec != Vector3::zero() {
         // If movement_vec is 0, normalize will return NaNs
-        pos.vector += movement_vec.normalize() * movement.speed * time.dt * 100.;
+        vel.vector = movement_vec.normalize() * movement.speed * time.dt;
+    }
+
+    // Handle jumping
+    if input.pressed_keys.get(&KeyCode::Space).is_some_and(|space| *space) {
+        vel.vector.y += movement.jump_vel;
+    }
+}
+
+fn player_air_movement(input: &Input, movement: &PlayerInput, dir: &Direction, vel: &mut Velocity) {
+    // Set up a normalized movement vector
+    let mut movement_vec = Vector3::new(0.0, 0.0, 0.0);
+    if input.pressed_keys.contains_key(&KeyCode::KeyW)
+        || input.pressed_keys.contains_key(&KeyCode::ArrowUp)
+    {
+        movement_vec += dir.vector;
+    }
+    if input.pressed_keys.contains_key(&KeyCode::KeyS)
+        || input.pressed_keys.contains_key(&KeyCode::ArrowDown)
+    {
+        movement_vec -= dir.vector;
+    }
+    if input.pressed_keys.contains_key(&KeyCode::KeyD)
+        || input.pressed_keys.contains_key(&KeyCode::ArrowRight)
+    {
+        movement_vec += dir.vector.cross(Vector3::unit_y());
+    }
+    if input.pressed_keys.contains_key(&KeyCode::KeyA)
+        || input.pressed_keys.contains_key(&KeyCode::ArrowLeft)
+    {
+        movement_vec -= dir.vector.cross(Vector3::unit_y());
+    }
+    movement_vec = movement_vec.normalize();
+
+    // Movement can raise velocity up to a certain amount, but not past
+    let speed = vel.vector.project_on(movement_vec).magnitude();
+    if speed < movement.speed {
+
     }
 }
 
