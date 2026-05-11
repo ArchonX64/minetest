@@ -83,10 +83,11 @@ fn player_ground_movement(input: &Input, dir: &Direction, vel: &mut Velocity, mo
     {
         movement_vec -= dir.vector.cross(Vector3::unit_y());
     }
+    
     movement_vec.y = 0.;
     if movement_vec != Vector3::zero() {
         // If movement_vec is 0, normalize will return NaNs
-        vel.vector = movement_vec.normalize() * movement.speed * time.dt;
+        vel.vector = movement_vec.normalize() * movement.speed * time.dt * 1000.;
     }
 
     // Handle jumping

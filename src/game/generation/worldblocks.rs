@@ -139,7 +139,7 @@ impl WorldBlocks {
         let blocks = self.get_subset_from_center(position.vector, collider.bounds); // Guarentees a possible position
         let (pos, bounds) = (position.vector, collider.bounds);
         let (corner_low, corner_high) = (pos - bounds, pos + bounds);
-        let (corner_low_round, corner_high_round) = (corner_low.map(|c| c.round()), corner_high.map(|c| c.round()));
+        let (corner_low_round, corner_high_round) = (corner_low.map(|c| c.floor()), corner_high.map(|c| c.ceil()));
         let (corner_low_dis, corner_high_dis) = (
             corner_low.sub_element_wise(corner_low_round),
             corner_high.sub_element_wise(corner_high_round)
@@ -168,7 +168,7 @@ impl WorldBlocks {
         }
         if corner_high_dis.y.abs() < Self::TOUCH_TOLERANCE && corner_high_dis.y < 0. {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32),
-                                 (corner_high.y.ceil() as i32 - 1, corner_high.y.ceil() as i32 + 1),
+                                 (corner_low.y.ceil() as i32 - 1, corner_high.y.ceil() as i32 + 1),
                                  (corner_low_round.z as i32, corner_high_round.z as i32));
             possibilities.push((blocks, Vector3 { x: 0, y: 1, z: 0}, corner_high.y - corner_high.y.round()));
         }
@@ -178,7 +178,7 @@ impl WorldBlocks {
                                  (corner_low.z.floor() as i32 - 1, corner_low.z.floor() as i32 + 1));
             possibilities.push((blocks, Vector3 { x: 0, y: 0, z: -1}, corner_low.z - corner_low.z.round()));
         }
-        if corner_high_dis.y.abs() < Self::TOUCH_TOLERANCE && corner_high_dis.y < 0. {
+        if corner_high_dis.z.abs() < Self::TOUCH_TOLERANCE && corner_high_dis.z < 0. {
             let blocks = range3d((corner_low_round.x as i32, corner_high_round.x as i32 + 1),
                                  (corner_low_round.y as i32, corner_high_round.y as i32),
                                  (corner_high.z.ceil() as i32 - 1, corner_high.z.ceil() as i32 + 1));

@@ -11,6 +11,7 @@ use std::time::Instant;
 use renderables::Renderables;
 use generation::worldblocks::WorldBlocks;
 use player::{ Camera };
+use crate::game::components::spatial;
 use crate::{application::Input};
 use crate::graphics::text_render::{ text_style::TextStyle, sentence::Sentence };
 use components::{ time::Time, spatial::{ Direction, Position }};
@@ -52,14 +53,16 @@ impl Game {
     pub fn generate_precollision_schedule() -> Schedule {
         let mut scheduler = legion::Schedule::builder();
 
+        components::input::schedule(&mut scheduler);
+        scheduler.add_system(spatial::apply_gravity_system());
+
         return scheduler.build()
     }
 
     pub fn generate_postcollision_schedule() -> Schedule {
         let mut scheduler = legion::Schedule::builder();
 
-        components::input::schedule(&mut scheduler);
-        components::spatial::schedule(&mut scheduler);
+        scheduler.add_system(spatial::apply_velocity_system());
 
         return scheduler.build()
     }

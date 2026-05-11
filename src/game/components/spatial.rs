@@ -39,17 +39,12 @@ impl Direction {
 pub struct Gravity;
 
 #[system(for_each)]
-fn apply_velocity(pos: &mut Position, vel: &Velocity, #[resource] time: &Time ) {
+pub fn apply_velocity(pos: &mut Position, vel: &Velocity, #[resource] time: &Time ) {
     pos.vector += vel.vector * time.dt;
 }
 
 const GRAVITY: f32 = 20.;
 #[system(for_each)]
-fn apply_gravity(vel: &mut Velocity, _grav: &Gravity, #[resource] time: &Time) {
+pub fn apply_gravity(vel: &mut Velocity, _grav: &Gravity, #[resource] time: &Time) {
     vel.vector.y -= GRAVITY * time.dt;
-}
-
-pub fn schedule(scheduler: &mut Builder) {
-    scheduler.add_system(apply_gravity_system());
-    scheduler.add_system(apply_velocity_system());
 }
